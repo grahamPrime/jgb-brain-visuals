@@ -232,6 +232,8 @@ body{background:var(--bg);color:var(--txt);font-family:'DM Mono',monospace;heigh
 .rc-resume:hover{background:rgba(34,168,102,.2)}
 .rc-table{background:rgba(138,144,144,.1);border-color:rgba(138,144,144,.3);color:#8a9090}
 .rc-table:hover{background:rgba(138,144,144,.2)}
+.rc-pause{background:rgba(91,141,217,.1);border-color:rgba(91,141,217,.3);color:#5b8dd9}
+.rc-pause:hover{background:rgba(91,141,217,.2)}
 .rc-auto{background:rgba(212,146,10,.08);border-color:rgba(212,146,10,.25);color:var(--hub)}
 .rc-auto:hover{background:rgba(212,146,10,.18)}
 .rc-epic-picker{display:none;gap:4px;flex-wrap:wrap;margin-top:5px}
@@ -501,12 +503,13 @@ body{background:var(--bg);color:var(--txt);font-family:'DM Mono',monospace;heigh
     <button class="rc-filter"   id="rcf-active"   onclick="rcFilter('active')">🟡 Active</button>
     <button class="rc-filter"   id="rcf-complete" onclick="rcFilter('complete')">🟢 Complete</button>
     <button class="rc-filter"   id="rcf-tabled"   onclick="rcFilter('tabled')">⚫ Tabled</button>
+    <button class="rc-filter"   id="rcf-paused"   onclick="rcFilter('paused')">🔵 Paused</button>
     <button class="rc-filter"   id="rcf-untagged" onclick="rcFilter('untagged')">Untagged</button>
     <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
     <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Sort:</span>
     <select class="rc-sort-select" id="rc-sort" onchange="rcSetSort(this.value)">
       <option value="epic">EPIC + Sprint</option>
-      <option value="status">Stalled / Active</option>
+      <option value="status">Status</option>
       <option value="date">Creation Date</option>
     </select>
     <button class="rc-dir-btn on" id="rc-dir-btn" onclick="rcToggleDir()">↓</button>
@@ -1866,10 +1869,10 @@ function rcSetStatus(url, status, e){
 }
 
 function rcStatusColor(s){
-  return s==='complete'?'#22a866':s==='active'?'#d4920a':s==='tabled'?'#8a9090':'#d43a2a';
+  return s==='complete'?'#22a866':s==='active'?'#d4920a':s==='tabled'?'#8a9090':s==='paused'?'#5b8dd9':'#d43a2a';
 }
 function rcStatusLabel(s){
-  return s==='complete'?'Complete':s==='active'?'Active':s==='tabled'?'Tabled':'Stalled';
+  return s==='complete'?'Complete':s==='active'?'Active':s==='tabled'?'Tabled':s==='paused'?'Paused':'Stalled';
 }
 function rcStalenessLabel(days){
   if(days === 0) return 'Today';
@@ -1879,11 +1882,11 @@ function rcStalenessLabel(days){
   return `${Math.floor(days/30)}mo ago`;
 }
 
-// Cycle status dot: stalled→active→complete→tabled→auto (remove override)
+// Cycle: stalled→active→paused→complete→tabled→auto
 function rcCycleStatus(url, e){
   e.stopPropagation();
   const current = rcStatusOverride[url] || rcStatus(RC_CHATS.find(c=>c.url===url)||{url});
-  const cycle = {stalled:'active', active:'complete', complete:'tabled', tabled:'auto'};
+  const cycle = {active:'paused', paused:'stalled', stalled:'tabled', tabled:'complete', complete:'auto'};
   rcSetStatus(url, cycle[current]||'active', null);
 }
 
@@ -1947,11 +1950,12 @@ function renderRecents(){
   if(rcActiveFilter === 'active')   chats = chats.filter(c=>c.status==='active');
   if(rcActiveFilter === 'complete') chats = chats.filter(c=>c.status==='complete');
   if(rcActiveFilter === 'tabled')   chats = chats.filter(c=>c.status==='tabled');
+  if(rcActiveFilter === 'paused')   chats = chats.filter(c=>c.status==='paused');
   if(rcActiveFilter === 'untagged') chats = chats.filter(c=>!c.epicId);
   if(rcSearchQuery) chats = chats.filter(c=>c.title.toLowerCase().includes(rcSearchQuery)||c.summary.toLowerCase().includes(rcSearchQuery));
 
   // Sort by selected mode
-  const statusOrder = {stalled:0, active:1, complete:2, tabled:3};
+  const statusOrder = {active:0, paused:1, stalled:2, tabled:3, complete:4};
   if(rcSortMode === 'epic'){
     // Group by EPIC (unassigned last), within each by recency
     chats.sort((a,b)=>{
@@ -1993,11 +1997,11 @@ function renderRecents(){
       groups.push({ label: isEpic?(ec?.label||`EPIC ${epicId}`):'Unassigned', items: byEpic[key] });
     });
   } else if(rcSortMode === 'status'){
-    const buckets = {stalled:[], active:[], complete:[], tabled:[]};
+    const buckets = {active:[], paused:[], stalled:[], tabled:[], complete:[]};
     chats.forEach(c=>{ (buckets[c.status]||buckets.active).push(c); });
     const order = rcSortDir==='desc'
-      ? ['stalled','active','complete','tabled']
-      : ['tabled','complete','active','stalled'];
+      ? ['active','paused','stalled','tabled','complete']
+      : ['complete','tabled','stalled','paused','active'];
     order.forEach(s=>{ if(buckets[s].length) groups.push({ label: s.charAt(0).toUpperCase()+s.slice(1), items:buckets[s] }); });
   } else {
     groups = [{ label: `All (${chats.length})`, items: chats }];
@@ -2027,15 +2031,17 @@ function renderRecents(){
       const isStalled  = c.status === 'stalled';
       const isActive   = c.status === 'active';
       const isTabled   = c.status === 'tabled';
+      const isPaused   = c.status === 'paused';
       const isComplete = c.status === 'complete';
       const hasOverride = !!rcStatusOverride[c.url];
 
-      // Action buttons shown contextually
-      const resumeBtn  = (isStalled||isTabled)
+      const resumeBtn = (isStalled||isTabled||isPaused)
         ? `<button class="rc-action-btn rc-resume" onclick="rcSetStatus('${c.url}','active',event);window.open('${c.url}','_blank')" title="Resume — mark active and open">▶ Resume</button>` : '';
-      const tableBtn   = (isStalled||isActive)
+      const pauseBtn  = (isStalled||isActive)
+        ? `<button class="rc-action-btn rc-pause" onclick="rcSetStatus('${c.url}','paused',event)" title="Pause — good enough for now">⏸ Pause</button>` : '';
+      const tableBtn  = (isStalled||isActive||isPaused)
         ? `<button class="rc-action-btn rc-table" onclick="rcSetStatus('${c.url}','tabled',event)" title="Table this chat">⊟ Table</button>` : '';
-      const autoBtn    = hasOverride
+      const autoBtn   = hasOverride
         ? `<button class="rc-action-btn rc-auto" onclick="rcSetStatus('${c.url}','auto',event)" title="Reset to auto status">↺ Auto</button>` : '';
 
       html += `<div class="rc-row" onclick="window.open('${c.url}','_blank')">
@@ -2050,7 +2056,7 @@ function renderRecents(){
             <span class="rc-staleness" style="color:${sc}">${rcStatusLabel(c.status)}</span>
             ${c.folder ? `<span style="font-size:10px;color:var(--dim);padding:1px 5px;background:var(--border);border-radius:3px">${c.folder}</span>` : ''}
             ${epicTagHtml}
-            ${resumeBtn}${tableBtn}${autoBtn}
+            ${resumeBtn}${pauseBtn}${tableBtn}${autoBtn}
           </div>
           ${pickerHtml}
         </div>
