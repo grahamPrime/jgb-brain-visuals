@@ -198,33 +198,105 @@ body{background:var(--bg);color:var(--txt);font-family:'DM Mono',monospace;heigh
 .tip{position:fixed;pointer-events:none;background:rgba(30,28,26,.93);border:1px solid var(--border2);border-radius:5px;padding:8px 12px;font-size:10px;color:#f0ede8;max-width:220px;z-index:200;opacity:0;transition:opacity .12s;line-height:1.6}
 
 /* ════════════════════════════════
-   VIEW 6 — RECENTS
+   VIEW 6 — ALL CHATS
 ════════════════════════════════ */
 #v-recents{flex:1;overflow:hidden;flex-direction:column}
-.rc-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-shrink:0;flex-wrap:wrap}
-.rc-filter{background:var(--border);border:1px solid var(--border2);color:var(--muted);font-family:'DM Mono',monospace;font-size:9px;padding:4px 9px;border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
+.rc-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.rc-filter{background:var(--border);border:1px solid var(--border2);color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;padding:4px 9px;border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
 .rc-filter:hover,.rc-filter.on{background:var(--s2);color:var(--txt);border-color:var(--border2)}
-.rc-search{background:var(--bg);border:1px solid var(--border);color:var(--txt);font-family:'DM Mono',monospace;font-size:10px;padding:4px 10px;border-radius:4px;outline:none;width:200px;margin-left:auto}
+.rc-sort-select{background:var(--bg);border:1px solid var(--border);color:var(--txt);font-family:'DM Mono',monospace;font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;padding-right:22px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a607a'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center}
+.rc-sort-select:focus{border-color:var(--border2)}
+.rc-dir-btn{background:var(--border);border:1px solid var(--border2);color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;padding:3px 8px;border-radius:4px;cursor:pointer;transition:all .15s;min-width:28px;text-align:center}
+.rc-dir-btn:hover,.rc-dir-btn.on{background:var(--s2);color:var(--txt);border-color:var(--border2)}
+.rc-search{background:var(--bg);border:1px solid var(--border);color:var(--txt);font-family:'DM Mono',monospace;font-size:10px;padding:4px 10px;border-radius:4px;outline:none;width:180px;margin-left:auto}
 .rc-search:focus{border-color:var(--border2)}
 .rc-scroll{flex:1;overflow-y:auto;padding:0 20px 20px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
-.rc-group-hd{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:14px 0 6px;border-bottom:1px solid var(--border);margin-bottom:2px;display:flex;align-items:center;gap:8px;position:sticky;top:0;background:var(--bg);z-index:1}
-.rc-group-badge{font-size:8px;padding:1px 6px;border-radius:10px;background:var(--border);color:var(--dim)}
+.rc-group-hd{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:14px 0 6px;border-bottom:1px solid var(--border);margin-bottom:2px;display:flex;align-items:center;gap:8px;position:sticky;top:0;background:var(--bg);z-index:1}
+.rc-group-badge{font-size:10px;padding:1px 6px;border-radius:10px;background:var(--border);color:var(--dim)}
 .rc-row{display:flex;align-items:flex-start;gap:12px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;transition:all .1s;border-radius:4px}
 .rc-row:hover{background:var(--s1);padding-left:10px}
-.rc-status{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.rc-status{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:5px}
 .rc-main{flex:1;min-width:0}
-.rc-title{font-size:11px;color:var(--txt);font-weight:500;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rc-summary{font-size:10px;color:var(--muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rc-title{font-size:15px;color:var(--txt);font-weight:500;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-summary{font-size:13px;color:var(--muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .rc-meta{display:flex;gap:8px;align-items:center;margin-top:5px;flex-wrap:wrap}
-.rc-date{font-size:9px;color:var(--dim)}
-.rc-epic-tag{font-size:8px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid;transition:all .12s;white-space:nowrap}
-.rc-staleness{font-size:8px;padding:1px 6px;border-radius:3px}
-.rc-open{font-size:9px;color:var(--notion);text-decoration:none;flex-shrink:0;padding:2px 7px;border:1px solid rgba(0,160,138,.25);border-radius:3px;transition:all .12s;align-self:flex-start}
+.rc-date{font-size:11px;color:var(--dim)}
+.rc-epic-tag{font-size:10px;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px solid;transition:all .12s;white-space:nowrap}
+.rc-staleness{font-size:10px;padding:1px 6px;border-radius:3px}
+.rc-open{font-size:11px;color:var(--notion);text-decoration:none;flex-shrink:0;padding:3px 8px;border:1px solid rgba(0,160,138,.25);border-radius:3px;transition:all .12s;align-self:flex-start}
 .rc-open:hover{background:rgba(0,160,138,.08)}
+.rc-status-wrap{cursor:pointer;padding:2px;border-radius:50%;transition:background .15s;flex-shrink:0;margin-top:3px}
+.rc-status-wrap:hover{background:rgba(0,0,0,.08)}
+.rc-action-btn{font-size:10px;padding:2px 8px;border-radius:3px;cursor:pointer;border:1px solid;font-family:'DM Mono',monospace;transition:all .12s;white-space:nowrap}
+.rc-resume{background:rgba(34,168,102,.1);border-color:rgba(34,168,102,.3);color:#22a866}
+.rc-resume:hover{background:rgba(34,168,102,.2)}
+.rc-table{background:rgba(138,144,144,.1);border-color:rgba(138,144,144,.3);color:#8a9090}
+.rc-table:hover{background:rgba(138,144,144,.2)}
+.rc-auto{background:rgba(212,146,10,.08);border-color:rgba(212,146,10,.25);color:var(--hub)}
+.rc-auto:hover{background:rgba(212,146,10,.18)}
 .rc-epic-picker{display:none;gap:4px;flex-wrap:wrap;margin-top:5px}
 .rc-epic-picker.open{display:flex}
-.rc-epic-opt{font-size:8px;padding:2px 7px;border-radius:10px;cursor:pointer;background:var(--border);border:1px solid var(--border2);color:var(--muted);transition:all .12s;white-space:nowrap}
+.rc-epic-opt{font-size:10px;padding:3px 8px;border-radius:10px;cursor:pointer;background:var(--border);border:1px solid var(--border2);color:var(--muted);transition:all .12s;white-space:nowrap}
 .rc-epic-opt:hover{color:var(--txt);background:var(--s2)}
+
+/* ── Bump all text-list font sizes 50% ── */
+/* Tree panel */
+.tp-head{padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.tp-body{flex:1;overflow-y:auto;padding:10px 12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.tp-legend{padding:8px 14px;border-top:1px solid var(--border);display:flex;gap:14px;flex-shrink:0}
+.tp-leg-row{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.tp-leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tp-item{display:flex;align-items:center;gap:7px;padding:3px 5px;border-radius:3px;cursor:pointer;transition:background .1s;font-size:13px;color:var(--muted)}
+.tp-item:hover{background:rgba(0,0,0,.04);color:var(--txt)}
+.tp-item-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+/* Cluster panel */
+.cp-head{padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;flex-shrink:0}
+.cp-body{flex:1;overflow-y:auto;padding:8px 12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.cp-cluster-name{font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;font-weight:500}
+.cp-item{font-size:13px;color:var(--muted);padding:2px 7px;cursor:pointer;border-radius:2px;transition:all .1s;display:flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border)}
+.cp-item:hover{color:var(--txt);border-color:var(--border2)}
+.cp-item-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+/* Timeline */
+.tl-filter{background:var(--border);border:1px solid var(--border2);color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;padding:4px 9px;border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
+.tl-filter:hover,.tl-filter.on{background:var(--s2);color:var(--txt);border-color:var(--border2)}
+.yr-label{font-family:'Syne',sans-serif;font-weight:700;font-size:24px;color:var(--border2);letter-spacing:.02em;margin-bottom:6px;padding-left:2px}
+.ev-date{font-size:12px;color:var(--muted);width:60px;flex-shrink:0;padding-top:1px}
+.ev-title{font-size:14px;color:var(--txt);line-height:1.4}
+.ev-src{font-size:10px;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:middle;display:inline-block}
+/* Graph bottom panel */
+.gs-head{padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.gs-search input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--txt);font-family:'DM Mono',monospace;font-size:13px;padding:5px 8px;border-radius:4px;outline:none}
+.gs-body{flex:1;overflow-y:auto;padding:10px 12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;font-size:14px;color:var(--muted);line-height:1.8}
+.gs-leg-row{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);cursor:pointer}
+.gs-leg-row:hover{color:var(--txt)}
+.gs-btn{background:var(--border);border:1px solid var(--border2);color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;padding:5px 9px;border-radius:3px;cursor:pointer;text-transform:uppercase;letter-spacing:.05em;transition:all .12s}
+.gs-btn:hover{background:var(--s2);color:var(--txt)}
+.g-nd-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--txt);margin-bottom:5px;line-height:1.3}
+.g-nd-date{font-size:11px;color:var(--muted);margin-bottom:8px}
+.g-nd-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:10px}
+.g-nd-sec{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.g-conn-item{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);padding:5px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;cursor:pointer;margin-bottom:3px;transition:all .12s}
+.g-conn-item:hover{border-color:var(--border2);color:var(--txt)}
+.g-open-btn{display:block;font-size:13px;color:var(--muted);padding:5px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;text-decoration:none;margin-bottom:6px;transition:all .12s}
+.g-open-btn:hover{border-color:var(--border2);color:var(--txt)}
+/* Dashboard */
+.db-card-title{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.db-card-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--txt);line-height:1}
+.db-card-sub{font-size:12px;color:var(--dim)}
+.epic-label{flex:1;font-size:14px;color:var(--txt)}
+.epic-days{font-size:12px;color:var(--muted);flex-shrink:0}
+.week-title{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.week-item-label{flex:1;font-size:13px;color:var(--txt)}
+.week-item-label.done{text-decoration:line-through;color:var(--dim)}
+.week-item-src{font-size:11px;color:var(--dim)}
+.log-table{width:100%;border-collapse:collapse;font-size:13px}
+.log-table th{text-align:left;padding:6px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--border);font-weight:400}
+.log-table td{padding:6px 10px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top}
+.momentum-label{font-size:12px;color:var(--muted);width:60px;flex-shrink:0}
+.momentum-val{font-size:12px;color:var(--dim);width:28px;text-align:right;flex-shrink:0}
+.db-btn{font-size:10px;padding:5px 11px;border-radius:3px;background:var(--border);color:var(--muted);border:1px solid var(--border2);cursor:pointer;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em;transition:all .12s}
+.db-btn:hover{background:var(--s2);color:var(--txt)}
+.nd-chip{display:inline-block;font-size:10px;padding:2px 7px;border-radius:3px;margin:0 2px 3px 0}
 </style>
 </head>
 <body>
@@ -248,7 +320,7 @@ body{background:var(--bg);color:var(--txt);font-family:'DM Mono',monospace;heigh
     <span class="tab-icon">📊</span> Dashboard
   </div>
   <div class="tab" onclick="switchTab('recents')" id="tab-recents">
-    <span class="tab-icon">🕐</span> Recents
+    <span class="tab-icon">💬</span> All Chats
   </div>
   <div class="spacer"></div>
 </div>
@@ -428,9 +500,19 @@ body{background:var(--bg);color:var(--txt);font-family:'DM Mono',monospace;heigh
     <button class="rc-filter"   id="rcf-stalled"  onclick="rcFilter('stalled')">🔴 Stalled</button>
     <button class="rc-filter"   id="rcf-active"   onclick="rcFilter('active')">🟡 Active</button>
     <button class="rc-filter"   id="rcf-complete" onclick="rcFilter('complete')">🟢 Complete</button>
-    <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-left:8px">EPIC:</span>
+    <button class="rc-filter"   id="rcf-tabled"   onclick="rcFilter('tabled')">⚫ Tabled</button>
     <button class="rc-filter"   id="rcf-untagged" onclick="rcFilter('untagged')">Untagged</button>
-    <input class="rc-search" id="rc-search" placeholder="Search titles…" oninput="rcSearch(this.value)">
+    <div style="width:1px;height:20px;background:var(--border);margin:0 2px"></div>
+    <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Sort:</span>
+    <select class="rc-sort-select" id="rc-sort" onchange="rcSetSort(this.value)">
+      <option value="epic">EPIC + Sprint</option>
+      <option value="status">Stalled / Active</option>
+      <option value="date">Creation Date</option>
+    </select>
+    <button class="rc-dir-btn on" id="rc-dir-btn" onclick="rcToggleDir()">↓</button>
+    <button class="rc-filter" id="rc-refresh-btn" onclick="rcRefresh()" style="border-color:rgba(0,160,138,.3);color:var(--notion)">⟳ Refresh</button>
+    <span id="rc-last-fetched" style="font-size:10px;color:var(--dim)"></span>
+    <input class="rc-search" id="rc-search" placeholder="Search…" oninput="rcSearch(this.value)">
   </div>
   <div class="rc-scroll" id="rc-scroll"></div>
 </div>
@@ -1759,16 +1841,36 @@ function rcDaysAgo(dateStr){
   return Math.floor((TODAY - new Date(dateStr)) / 86400000);
 }
 
+// Manual status overrides — url -> 'active'|'complete'|'tabled'
+// 'auto' means remove override and return to recency calculation
+let rcStatusOverride = {};
+
 function rcStatus(chat){
+  if(rcStatusOverride[chat.url]) return rcStatusOverride[chat.url];
   if(RC_ONESHOT.has(chat.url)) return 'complete';
   const days = rcDaysAgo(chat.updated);
-  if(days <= 7) return 'active';
-  if(days <= 14) return 'active'; // still warm
+  if(days <= 14) return 'active';
   return 'stalled';
 }
 
-function rcStatusColor(s){ return s==='complete'?'#22a866':s==='active'?'#d4920a':'#d43a2a'; }
-function rcStatusLabel(s){ return s==='complete'?'Complete':s==='active'?'Active':'Stalled'; }
+function rcSetStatus(url, status, e){
+  if(e) e.stopPropagation();
+  if(status === 'auto') delete rcStatusOverride[url];
+  else rcStatusOverride[url] = status;
+  // If resuming, also bump the updated date to today so recency holds
+  if(status === 'active'){
+    const chat = RC_CHATS.find(c=>c.url===url);
+    if(chat) chat.updated = TODAY.toISOString().slice(0,10);
+  }
+  renderRecents();
+}
+
+function rcStatusColor(s){
+  return s==='complete'?'#22a866':s==='active'?'#d4920a':s==='tabled'?'#8a9090':'#d43a2a';
+}
+function rcStatusLabel(s){
+  return s==='complete'?'Complete':s==='active'?'Active':s==='tabled'?'Tabled':'Stalled';
+}
 function rcStalenessLabel(days){
   if(days === 0) return 'Today';
   if(days === 1) return 'Yesterday';
@@ -1777,9 +1879,31 @@ function rcStalenessLabel(days){
   return `${Math.floor(days/30)}mo ago`;
 }
 
+// Cycle status dot: stalled→active→complete→tabled→auto (remove override)
+function rcCycleStatus(url, e){
+  e.stopPropagation();
+  const current = rcStatusOverride[url] || rcStatus(RC_CHATS.find(c=>c.url===url)||{url});
+  const cycle = {stalled:'active', active:'complete', complete:'tabled', tabled:'auto'};
+  rcSetStatus(url, cycle[current]||'active', null);
+}
+
 let rcActiveFilter = 'all';
 let rcSearchQuery = '';
 let rcPickerOpen = null;
+let rcSortMode = 'epic';   // 'epic' | 'status' | 'date'
+let rcSortDir  = 'desc';   // 'asc' | 'desc'
+
+function rcSetSort(mode){
+  rcSortMode = mode;
+  renderRecents();
+}
+
+function rcToggleDir(){
+  rcSortDir = rcSortDir === 'desc' ? 'asc' : 'desc';
+  const btn = document.getElementById('rc-dir-btn');
+  btn.textContent = rcSortDir === 'desc' ? '↓' : '↑';
+  renderRecents();
+}
 
 function rcFilter(f){
   rcActiveFilter = f;
@@ -1803,7 +1927,7 @@ function rcTogglePicker(url, e){
 function rcAssignEpic(url, epicId, e){
   e.stopPropagation();
   if(rcEpicMap[url] === epicId) delete rcEpicMap[url];
-  else rcEpicMap[url] = epicId;
+  else rcEpicMap[url] = parseInt(epicId)||epicId;
   rcPickerOpen = null;
   renderRecents();
 }
@@ -1822,66 +1946,111 @@ function renderRecents(){
   if(rcActiveFilter === 'stalled')  chats = chats.filter(c=>c.status==='stalled');
   if(rcActiveFilter === 'active')   chats = chats.filter(c=>c.status==='active');
   if(rcActiveFilter === 'complete') chats = chats.filter(c=>c.status==='complete');
+  if(rcActiveFilter === 'tabled')   chats = chats.filter(c=>c.status==='tabled');
   if(rcActiveFilter === 'untagged') chats = chats.filter(c=>!c.epicId);
   if(rcSearchQuery) chats = chats.filter(c=>c.title.toLowerCase().includes(rcSearchQuery)||c.summary.toLowerCase().includes(rcSearchQuery));
 
-  // Sort: stalled first, then active, then complete; within each by recency
-  const order = {stalled:0,active:1,complete:2};
-  chats.sort((a,b)=> order[a.status]-order[b.status] || a.days-b.days);
+  // Sort by selected mode
+  const statusOrder = {stalled:0, active:1, complete:2, tabled:3};
+  if(rcSortMode === 'epic'){
+    // Group by EPIC (unassigned last), within each by recency
+    chats.sort((a,b)=>{
+      const ae = a.epicId || 99, be = b.epicId || 99;
+      if(ae !== be) return rcSortDir==='desc' ? ae-be : be-ae;
+      return rcSortDir==='desc' ? a.days-b.days : b.days-a.days;
+    });
+  } else if(rcSortMode === 'status'){
+    chats.sort((a,b)=>{
+      const as = statusOrder[a.status], bs = statusOrder[b.status];
+      if(as !== bs) return rcSortDir==='desc' ? as-bs : bs-as;
+      return a.days-b.days;
+    });
+  } else if(rcSortMode === 'date'){
+    chats.sort((a,b)=>{
+      return rcSortDir==='desc' ? a.days-b.days : b.days-a.days;
+    });
+  }
 
-  // Group by EPIC (or Unassigned)
-  const byEpic = {};
-  chats.forEach(c=>{
-    const key = c.epicId ? `epic-${c.epicId}` : 'unassigned';
-    if(!byEpic[key]) byEpic[key] = [];
-    byEpic[key].push(c);
-  });
-
-  // Order: assigned EPICs first (1-6), then unassigned
-  const epicKeys = Object.keys(byEpic).filter(k=>k!=='unassigned').sort();
-  if(byEpic['unassigned']) epicKeys.push('unassigned');
+  // Group by EPIC for epic sort, by status bucket for status sort, flat for date sort
+  const useGroups = rcSortMode !== 'date';
+  let groups = [];
+  if(rcSortMode === 'epic'){
+    const byEpic = {};
+    chats.forEach(c=>{
+      const key = c.epicId ? `epic-${c.epicId}` : 'unassigned';
+      if(!byEpic[key]) byEpic[key]=[];
+      byEpic[key].push(c);
+    });
+    const epicKeys = Object.keys(byEpic).filter(k=>k!=='unassigned').sort((a,b)=>{
+      const na=parseInt(a.split('-')[1]), nb=parseInt(b.split('-')[1]);
+      return rcSortDir==='desc' ? na-nb : nb-na;
+    });
+    if(byEpic['unassigned']) epicKeys.push('unassigned');
+    epicKeys.forEach(key=>{
+      const isEpic = key!=='unassigned';
+      const epicId = isEpic ? parseInt(key.split('-')[1]) : null;
+      const ec = epicId ? EPIC_COLORS[epicId] : null;
+      groups.push({ label: isEpic?(ec?.label||`EPIC ${epicId}`):'Unassigned', items: byEpic[key] });
+    });
+  } else if(rcSortMode === 'status'){
+    const buckets = {stalled:[], active:[], complete:[], tabled:[]};
+    chats.forEach(c=>{ (buckets[c.status]||buckets.active).push(c); });
+    const order = rcSortDir==='desc'
+      ? ['stalled','active','complete','tabled']
+      : ['tabled','complete','active','stalled'];
+    order.forEach(s=>{ if(buckets[s].length) groups.push({ label: s.charAt(0).toUpperCase()+s.slice(1), items:buckets[s] }); });
+  } else {
+    groups = [{ label: `All (${chats.length})`, items: chats }];
+  }
 
   let html = '';
-  epicKeys.forEach(key=>{
-    const group = byEpic[key];
-    const isEpic = key !== 'unassigned';
-    const epicId = isEpic ? parseInt(key.split('-')[1]) : null;
-    const ec = epicId ? EPIC_COLORS[epicId] : null;
-    const groupLabel = isEpic ? (ec?.label || `EPIC ${epicId}`) : 'Unassigned';
-    const stalled = group.filter(c=>c.status==='stalled').length;
-
+  groups.forEach(group=>{
+    const stalled = group.items.filter(c=>c.status==='stalled').length;
     html += `<div class="rc-group-hd">
-      <span>${groupLabel}</span>
-      <span class="rc-group-badge">${group.length}</span>
-      ${stalled ? `<span style="color:#d43a2a;font-size:8px">⚠ ${stalled} stalled</span>` : ''}
+      <span>${group.label}</span>
+      <span class="rc-group-badge">${group.items.length}</span>
+      ${stalled ? `<span style="color:#d43a2a;font-size:10px">⚠ ${stalled} stalled</span>` : ''}
     </div>`;
-
-    group.forEach(c=>{
+    group.items.forEach(c=>{
       const sc = rcStatusColor(c.status);
       const epic = c.epicId ? EPIC_COLORS[c.epicId] : null;
       const pickerOpen = rcPickerOpen === c.url;
-
       const epicTagHtml = c.epicId && epic
         ? `<span class="rc-epic-tag" style="background:${epic.bg};border-color:${epic.border};color:${epic.text}" onclick="rcTogglePicker('${c.url}',event)">${epic.label} ✕</span>`
         : `<span class="rc-epic-tag" style="background:var(--border);border-color:var(--border2);color:var(--dim)" onclick="rcTogglePicker('${c.url}',event)">+ Tag EPIC</span>`;
-
       const pickerHtml = `<div class="rc-epic-picker ${pickerOpen?'open':''}" id="picker-${c.url.slice(-8)}">
         ${Object.entries(EPIC_COLORS).map(([id,ec])=>`
           <span class="rc-epic-opt" style="${c.epicId==id?`background:${ec.bg};color:${ec.text};border-color:${ec.border}`:''}" onclick="rcAssignEpic('${c.url}',${id},event)">${ec.label}</span>
         `).join('')}
         ${c.epicId?`<span class="rc-epic-opt" style="color:#d43a2a" onclick="rcAssignEpic('${c.url}',null,event)">✕ Remove</span>`:''}
       </div>`;
+      const isStalled  = c.status === 'stalled';
+      const isActive   = c.status === 'active';
+      const isTabled   = c.status === 'tabled';
+      const isComplete = c.status === 'complete';
+      const hasOverride = !!rcStatusOverride[c.url];
+
+      // Action buttons shown contextually
+      const resumeBtn  = (isStalled||isTabled)
+        ? `<button class="rc-action-btn rc-resume" onclick="rcSetStatus('${c.url}','active',event);window.open('${c.url}','_blank')" title="Resume — mark active and open">▶ Resume</button>` : '';
+      const tableBtn   = (isStalled||isActive)
+        ? `<button class="rc-action-btn rc-table" onclick="rcSetStatus('${c.url}','tabled',event)" title="Table this chat">⊟ Table</button>` : '';
+      const autoBtn    = hasOverride
+        ? `<button class="rc-action-btn rc-auto" onclick="rcSetStatus('${c.url}','auto',event)" title="Reset to auto status">↺ Auto</button>` : '';
 
       html += `<div class="rc-row" onclick="window.open('${c.url}','_blank')">
-        <div class="rc-status" style="background:${sc}"></div>
+        <div class="rc-status-wrap" title="Click to cycle status" onclick="rcCycleStatus('${c.url}',event)">
+          <div class="rc-status" style="background:${sc}"></div>
+        </div>
         <div class="rc-main">
           <div class="rc-title">${c.title}</div>
           <div class="rc-summary">${c.summary}</div>
           <div class="rc-meta">
             <span class="rc-date">${rcStalenessLabel(c.days)}</span>
             <span class="rc-staleness" style="color:${sc}">${rcStatusLabel(c.status)}</span>
-            ${c.folder ? `<span style="font-size:8px;color:var(--dim);padding:1px 5px;background:var(--border);border-radius:3px">${c.folder}</span>` : ''}
+            ${c.folder ? `<span style="font-size:10px;color:var(--dim);padding:1px 5px;background:var(--border);border-radius:3px">${c.folder}</span>` : ''}
             ${epicTagHtml}
+            ${resumeBtn}${tableBtn}${autoBtn}
           </div>
           ${pickerHtml}
         </div>
@@ -1891,11 +2060,166 @@ function renderRecents(){
   });
 
   scroll.innerHTML = html || `<div style="padding:24px;color:var(--dim);font-size:11px">No chats match this filter.</div>`;
-  setStatus(`Recents — ${chats.length} of ${RC_CHATS.length} chats · 🔴 stalled = 14+ days · click folder tag to filter · Open ↗ to resume`);
+  setStatus(`Recents — ${chats.length} of ${RC_CHATS.length} chats · 🔴 stalled = 14+ days · Open ↗ to resume · ⟳ Refresh to detect new chats`);
 }
+
+// ════════════════════════════════════════════════════════════
+// RC REFRESH — calls Claude API to get recent chats,
+// merges any new ones into RC_CHATS preserving EPIC tags
+// ════════════════════════════════════════════════════════════
+let rcFetching = false;
+
+async function rcRefresh(){
+  if(rcFetching) return;
+  rcFetching = true;
+  const btn = document.getElementById('rc-refresh-btn');
+  btn.textContent = '⟳ Fetching…';
+  btn.style.opacity = '0.5';
+  btn.style.cursor = 'default';
+  setStatus('Fetching latest chats via Claude API…');
+
+  try {
+    const prompt = `You have access to the recent_chats tool. Call it with n=20 and sort_order="desc".
+Return ONLY a JSON array (no markdown, no explanation) of chat objects with this shape:
+[{"url":"https://claude.ai/chat/UUID","title":"Chat title","updated":"YYYY-MM-DD","folder":"Folder name or empty string"}]
+Extract the url from the chat url field, title from the Title field, updated as YYYY-MM-DD from updated_at, folder from any folder/category label if present.
+Return ONLY the JSON array.`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'You are a data extraction assistant. Call recent_chats and return only a JSON array of chat objects. No markdown, no explanation.',
+        messages: [{ role: 'user', content: prompt }],
+        tools: [{
+          name: 'recent_chats',
+          description: 'Get recent chat conversations',
+          input_schema: {
+            type: 'object',
+            properties: {
+              n: { type: 'number' },
+              sort_order: { type: 'string' }
+            }
+          }
+        }]
+      })
+    });
+
+    const data = await res.json();
+
+    // Extract text content from response
+    const textBlocks = (data.content || []).filter(b => b.type === 'text').map(b => b.text);
+    const fullText = textBlocks.join('\n');
+
+    let fetched = [];
+    try {
+      const clean = fullText.replace(/```json|```/g, '').trim();
+      // find array
+      const match = clean.match(/\[[\s\S]*\]/);
+      if(match) fetched = JSON.parse(match[0]);
+    } catch(e) {
+      console.warn('Parse error:', e, fullText);
+    }
+
+    if(!fetched.length) {
+      // Fallback: the API may have returned tool_use blocks instead
+      // Try to extract from tool_result blocks
+      const toolResults = (data.content || []).filter(b => b.type === 'tool_result');
+      if(toolResults.length) {
+        try {
+          const raw = toolResults[0].content?.[0]?.text || '';
+          const match = raw.match(/\[[\s\S]*\]/);
+          if(match) fetched = JSON.parse(match[0]);
+        } catch(e2) {}
+      }
+    }
+
+    let added = 0;
+    if(fetched.length) {
+      const existingUrls = new Set(RC_CHATS.map(c => c.url));
+      fetched.forEach(fc => {
+        if(fc.url && !existingUrls.has(fc.url)) {
+          // Insert at top of array (most recent first)
+          RC_CHATS.unshift({
+            url: fc.url,
+            title: fc.title || 'Untitled',
+            updated: fc.updated || new Date().toISOString().slice(0,10),
+            folder: fc.folder || '',
+            summary: 'Auto-detected new chat. Click to open and review.'
+          });
+          existingUrls.add(fc.url);
+          added++;
+        } else if(fc.url && existingUrls.has(fc.url)) {
+          // Update the updated date in case it changed
+          const existing = RC_CHATS.find(c => c.url === fc.url);
+          if(existing && fc.updated > existing.updated) {
+            existing.updated = fc.updated;
+          }
+        }
+      });
+
+      const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      document.getElementById('rc-last-fetched').textContent = `Last fetched ${now}`;
+      setStatus(`⟳ Refreshed — ${added} new chat${added!==1?'s':''} added · ${RC_CHATS.length} total`);
+    } else {
+      setStatus('⟳ Refresh complete — no new chats detected (API returned no structured data)');
+    }
+
+  } catch(err) {
+    setStatus('⟳ Refresh error: ' + err.message);
+    console.error(err);
+  }
+
+  btn.textContent = '⟳ Refresh';
+  btn.style.opacity = '1';
+  btn.style.cursor = 'pointer';
+  rcFetching = false;
+  renderRecents();
+}
+
+// Auto-refresh on tab open (silently, no loading state)
+async function rcAutoRefresh(){
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'Call recent_chats and return only a JSON array of {url,title,updated,folder}. No markdown.',
+        messages: [{ role: 'user', content: 'Call recent_chats with n=20, sort_order=desc. Return JSON array only.' }],
+        tools: [{
+          name: 'recent_chats',
+          description: 'Get recent chat conversations',
+          input_schema: { type:'object', properties:{ n:{type:'number'}, sort_order:{type:'string'} } }
+        }]
+      })
+    });
+    const data = await res.json();
+    const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const match = textBlocks.replace(/```json|```/g,'').match(/\[[\s\S]*\]/);
+    if(!match) return;
+    const fetched = JSON.parse(match[0]);
+    const existingUrls = new Set(RC_CHATS.map(c=>c.url));
+    let added = 0;
+    fetched.forEach(fc=>{
+      if(fc.url && !existingUrls.has(fc.url)){
+        RC_CHATS.unshift({ url:fc.url, title:fc.title||'Untitled', updated:fc.updated||new Date().toISOString().slice(0,10), folder:fc.folder||'', summary:'New chat — click to open.' });
+        existingUrls.add(fc.url);
+        added++;
+      }
+    });
+    if(added > 0){
+      const now = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('rc-last-fetched').textContent = `${added} new · ${now}`;
+      renderRecents();
+    }
+  } catch(e){ /* silent fail */ }
+}
+
 </script>
-
-
 <script>
 // ════════════════════════════════════════════════════════════
 // TAB SWITCHER
@@ -1918,7 +2242,7 @@ function switchTab(id){
       setStatus('Knowledge Graph — '+gNodes.length+' nodes · Drag bar to resize · Shift+click to pin');
     }
     if(id==='dashboard') { renderDashboard(); }
-    if(id==='recents')   { renderRecents(); }
+    if(id==='recents')   { renderRecents(); rcAutoRefresh(); }
   });
 }
 
