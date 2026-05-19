@@ -1844,9 +1844,26 @@ function rcDaysAgo(dateStr){
   return Math.floor((TODAY - new Date(dateStr)) / 86400000);
 }
 
-// Manual status overrides — url -> 'active'|'complete'|'tabled'
-// 'auto' means remove override and return to recency calculation
+// ── SUPABASE CONFIG ──
+const SB_URL  = 'https://cupeqkwivxkjvlhmklzk.supabase.co';
+const SB_KEY  = 'sb_publishable_eigWj3tLQsqZ0Vai1KYnjQ_UxBY-1Df';
+
+// In-memory cache — loaded from Supabase on tab open
 let rcStatusOverride = {};
+
+// Load all overrides from Supabase
+async function rcLoadStatus(){
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/chat_status?select=chat_url,status`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
+    });
+    const rows = await res.json();
+    if(Array.isArray(rows)){
+      rcStatusOverride = {};
+      rows.forEach(r => { if(r.status !== 'auto') rcStatusOverride[r.chat_url] = r.status; });
+    }
+  } catch(e){ console.warn('Status load failed:', e); }
+}
 
 function rcStatus(chat){
   if(rcStatusOverride[chat.url]) return rcStatusOverride[chat.url];
@@ -1856,17 +1873,40 @@ function rcStatus(chat){
   return 'stalled';
 }
 
-function rcSetStatus(url, status, e){
+async function rcSetStatus(url, status, e){
   if(e) e.stopPropagation();
+
+  // Update local cache immediately for instant UI response
   if(status === 'auto') delete rcStatusOverride[url];
   else rcStatusOverride[url] = status;
-  // If resuming, also bump the updated date to today so recency holds
+
+  // Bump updated date if resuming
   if(status === 'active'){
     const chat = RC_CHATS.find(c=>c.url===url);
     if(chat) chat.updated = TODAY.toISOString().slice(0,10);
   }
+
+  // Persist to Supabase (upsert)
+  try {
+    await fetch(`${SB_URL}/rest/v1/chat_status`, {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': `Bearer ${SB_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({
+        chat_url: url,
+        status: status === 'auto' ? 'auto' : status,
+        updated_at: new Date().toISOString()
+      })
+    });
+  } catch(e){ console.warn('Status save failed:', e); }
+
   renderRecents();
 }
+
 
 function rcStatusColor(s){
   return s==='complete'?'#22a866':s==='active'?'#d4920a':s==='tabled'?'#8a9090':s==='paused'?'#5b8dd9':'#d43a2a';
@@ -2248,7 +2288,7 @@ function switchTab(id){
       setStatus('Knowledge Graph — '+gNodes.length+' nodes · Drag bar to resize · Shift+click to pin');
     }
     if(id==='dashboard') { renderDashboard(); }
-    if(id==='recents')   { renderRecents(); rcAutoRefresh(); }
+    if(id==='recents')   { rcLoadStatus().then(()=>{ renderRecents(); rcAutoRefresh(); }); }
   });
 }
 
