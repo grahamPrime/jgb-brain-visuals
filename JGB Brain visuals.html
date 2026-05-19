@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JGB Brain Visuals</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0ede8;--s1:#e8e4de;--s2:#dedad4;--border:#cbc6be;--border2:#b8b2a9;
+  --notion:#00a08a;--brain:#6344e0;--drive:#d4880a;--hub:#d4920a;
+  --txt:#1e1c1a;--muted:#6b6560;--dim:#a09890;
+  --c1:#ff6b9d;--c2:#00d4ff;--c3:#7fff7f;--c4:#ffb347;--c5:#d4a8ff;
+  --c6:#ff8c69;--c7:#87ceeb;--c8:#98fb98;
+}
+body{background:var(--bg);color:var(--txt);font-family:'DM Mono',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── TAB BAR ── */
+.tabbar{display:flex;align-items:stretch;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;padding:0 18px;gap:0}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:var(--hub);letter-spacing:.07em;padding:12px 20px 12px 0;border-right:1px solid var(--border);margin-right:8px;display:flex;align-items:center}
+.tab{font-size:10px;text-transform:uppercase;letter-spacing:.08em;padding:0 16px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tab:hover{color:var(--txt)}
+.tab.active{color:var(--txt);border-bottom-color:var(--hub)}
+.tab-icon{font-size:13px}
+.spacer{flex:1}
+.badge{font-size:8px;padding:1px 5px;border-radius:10px;background:var(--border);color:var(--muted)}
+.tab.active .badge{background:rgba(212,146,10,.15);color:var(--hub)}
+
+/* ── VIEWS ── */
+.view{display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0}
+.view.active{display:flex}
+
+/* ── STATUS ── */
+.status{padding:3px 16px;background:var(--s2);border-top:1px solid var(--border);font-size:9px;color:var(--muted);flex-shrink:0}
+
+/* ════════════════════════════════
+   VERTICAL SPLIT (canvas top, panel bottom)
+   Used by Hierarchy, Clusters, Graph
+════════════════════════════════ */
+.vsplit{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0}
+.vsplit-top{overflow:hidden;position:relative;flex-shrink:0}
+.vsplit-top svg{position:absolute;inset:0;width:100%;height:100%}
+.vsplit-bar{height:6px;background:var(--s2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:row-resize;flex-shrink:0;display:flex;align-items:center;justify-content:center;user-select:none;transition:background .15s}
+.vsplit-bar:hover,.vsplit-bar.dragging{background:var(--hub)}
+.vsplit-bar::after{content:'';width:32px;height:2px;background:var(--border2);border-radius:2px}
+.vsplit-bottom{flex:1;overflow:hidden;display:flex;flex-direction:column;background:var(--s1);min-height:40px}
+
+/* Tree panel */
+.tp-head{padding:8px 14px;border-bottom:1px solid var(--border);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.tp-body{flex:1;overflow-y:auto;padding:10px 12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.tp-legend{padding:8px 14px;border-top:1px solid var(--border);display:flex;gap:14px;flex-shrink:0}
+.tp-leg-row{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--muted)}
+.tp-leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.tp-item{display:flex;align-items:center;gap:7px;padding:2px 5px;border-radius:3px;cursor:pointer;transition:background .1s;font-size:10px;color:var(--muted)}
+.tp-item:hover{background:rgba(0,0,0,.04);color:var(--txt)}
+.tp-item-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* Cluster panel */
+.cp-head{padding:8px 14px;border-bottom:1px solid var(--border);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;flex-shrink:0}
+.cp-body{flex:1;overflow-y:auto;padding:8px 12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.cp-cluster-row{margin-bottom:8px}
+.cp-cluster-name{font-size:9px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;font-weight:500}
+.cp-items{display:flex;flex-wrap:wrap;gap:3px;padding-left:8px;border-left:2px solid;margin-bottom:4px}
+.cp-item{font-size:9px;color:var(--muted);padding:1px 6px;cursor:pointer;border-radius:2px;transition:all .1s;display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border)}
+.cp-item:hover{color:var(--txt);border-color:var(--border2)}
+.cp-item-dot{width:4px;height:4px;border-radius:50%;flex-shrink:0}
+
+/* Graph bottom panel */
+.gs-head{padding:8px 14px;border-bottom:1px solid var(--border);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.gs-search{padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.gs-search input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--txt);font-family:'DM Mono',monospace;font-size:10px;padding:4px 8px;border-radius:4px;outline:none}
+.gs-search input:focus{border-color:var(--border2)}
+.gs-search input::placeholder{color:var(--dim)}
+.gs-inner{display:flex;flex:1;overflow:hidden;min-height:0}
+.gs-body{flex:1;overflow-y:auto;padding:10px 12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;font-size:11px;color:var(--muted);line-height:1.8}
+.gs-sidebar{width:180px;border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.gs-legend{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:5px}
+.gs-leg-row{display:flex;align-items:center;gap:7px;font-size:9px;color:var(--muted);cursor:pointer}
+.gs-leg-row:hover{color:var(--txt)}
+.gs-leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.gs-ctrl{padding:8px 12px;display:flex;gap:5px;flex-wrap:wrap}
+.gs-btn{background:var(--border);border:1px solid var(--border2);color:var(--muted);font-family:'DM Mono',monospace;font-size:8px;padding:4px 8px;border-radius:3px;cursor:pointer;text-transform:uppercase;letter-spacing:.05em;transition:all .12s}
+.gs-btn:hover{background:var(--s2);color:var(--txt)}
+
+.nd-chip{display:inline-block;font-size:8px;padding:1px 6px;border-radius:3px;margin:0 2px 3px 0}
+.nd-chip.notion{background:rgba(0,160,138,.12);color:var(--notion);border:1px solid rgba(0,160,138,.3)}
+.nd-chip.brain{background:rgba(99,68,224,.1);color:var(--brain);border:1px solid rgba(99,68,224,.25)}
+.nd-chip.drive{background:rgba(212,136,10,.1);color:var(--drive);border:1px solid rgba(212,136,10,.25)}
+.nd-chip.hub{background:rgba(212,146,10,.1);color:var(--hub);border:1px solid rgba(212,146,10,.25)}
+.g-nd-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--txt);margin-bottom:5px;line-height:1.3}
+.g-nd-date{font-size:9px;color:var(--muted);margin-bottom:8px}
+.g-nd-desc{font-size:10px;color:var(--muted);line-height:1.7;margin-bottom:10px}
+.g-nd-sec{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.g-conn-item{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);padding:4px 7px;background:var(--bg);border:1px solid var(--border);border-radius:4px;cursor:pointer;margin-bottom:3px;transition:all .12s}
+.g-conn-item:hover{border-color:var(--border2);color:var(--txt)}
+.g-conn-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.g-open-btn{display:block;font-size:10px;color:var(--muted);padding:4px 7px;background:var(--bg);border:1px solid var(--border);border-radius:4px;text-decoration:none;margin-bottom:6px;transition:all .12s}
+.g-open-btn:hover{border-color:var(--border2);color:var(--txt)}
+
+/* ════════════════════════════════
+   VIEW 1 — HIERARCHY TREE
+════════════════════════════════ */
+.tree-node{cursor:pointer}
+.tree-node circle{transition:r .15s,filter .15s}
+.tree-node:hover circle{filter:brightness(0.7)}
+.tree-link{fill:none;stroke:var(--border2);stroke-width:1}
+
+/* ════════════════════════════════
+   VIEW 3 — TIMELINE
+════════════════════════════════ */
+#v-timeline{flex:1;overflow:hidden;flex-direction:column}
+.tl-controls{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.tl-filter{background:var(--border);border:1px solid var(--border2);color:var(--muted);font-family:'DM Mono',monospace;font-size:9px;padding:4px 9px;border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
+.tl-filter:hover,.tl-filter.on{background:var(--s2);color:var(--txt);border-color:var(--border2)}
+.tl-scroll{flex:1;overflow-y:auto;padding:16px 24px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.yr-block{margin-bottom:4px}
+.yr-label{font-family:'Syne',sans-serif;font-weight:700;font-size:22px;color:var(--border2);letter-spacing:.02em;margin-bottom:6px;padding-left:2px}
+.yr-line{display:flex;flex-direction:column;gap:3px;padding-left:16px;border-left:1px solid var(--border2);margin-bottom:16px}
+.ev{display:flex;align-items:flex-start;gap:10px;padding:5px 0;cursor:pointer;border-radius:4px;transition:background .1s}
+.ev:hover{background:rgba(0,0,0,.03)}
+.ev-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.ev-date{font-size:9px;color:var(--muted);width:55px;flex-shrink:0;padding-top:1px}
+.ev-title{font-size:11px;color:var(--txt);line-height:1.4}
+.ev-src{font-size:8px;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:middle;display:inline-block}
+.ev-src.notion{background:rgba(0,160,138,.12);color:var(--notion)}
+.ev-src.brain{background:rgba(99,68,224,.1);color:var(--brain)}
+.ev-src.drive{background:rgba(212,136,10,.1);color:var(--drive)}
+
+/* ════════════════════════════════
+   VIEW 5 — DASHBOARD
+════════════════════════════════ */
+#v-dashboard{flex:1;overflow-y:auto;padding:20px 24px;flex-direction:column;gap:18px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.db-row{display:flex;gap:16px;flex-wrap:wrap;flex-shrink:0}
+.db-card{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:14px 16px;flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px}
+.db-card-title{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.db-card-val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--txt);line-height:1}
+.db-card-sub{font-size:9px;color:var(--dim)}
+
+/* EPIC grid */
+.epic-grid{display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.epic-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s1);border:1px solid var(--border);border-radius:5px;cursor:pointer;transition:border-color .15s}
+.epic-row:hover{border-color:var(--border2)}
+.epic-rag{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.epic-num{font-size:9px;color:var(--dim);width:16px;flex-shrink:0}
+.epic-label{flex:1;font-size:11px;color:var(--txt)}
+.epic-days{font-size:9px;color:var(--muted);flex-shrink:0}
+.epic-adj{font-size:8px;padding:2px 7px;border-radius:3px;background:var(--border);color:var(--muted);cursor:pointer;border:1px solid var(--border2);font-family:'DM Mono',monospace;margin-left:4px;transition:all .12s}
+.epic-adj:hover{background:var(--s2);color:var(--txt)}
+.rag-g{background:#22a866}
+.rag-a{background:#d4920a}
+.rag-r{background:#d43a2a}
+
+/* Weekly panel */
+.week-panel{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:14px 16px;flex-shrink:0}
+.week-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.week-title{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.week-actions{display:flex;gap:6px}
+.db-btn{font-size:8px;padding:4px 10px;border-radius:3px;background:var(--border);color:var(--muted);border:1px solid var(--border2);cursor:pointer;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.05em;transition:all .12s}
+.db-btn:hover{background:var(--s2);color:var(--txt)}
+.db-btn.primary{background:rgba(212,146,10,.15);color:var(--hub);border-color:rgba(212,146,10,.3)}
+.db-btn.primary:hover{background:rgba(212,146,10,.25)}
+.week-items{display:flex;flex-direction:column;gap:4px}
+.week-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;transition:background .1s}
+.week-item:hover{background:var(--bg)}
+.week-check{width:14px;height:14px;border-radius:3px;border:1px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;transition:all .15s}
+.week-check.done{background:#22a866;border-color:#22a866;color:#fff}
+.week-check.carried{background:#d4920a;border-color:#d4920a;color:#fff}
+.week-item-label{flex:1;font-size:10px;color:var(--txt)}
+.week-item-label.done{text-decoration:line-through;color:var(--dim)}
+.week-item-src{font-size:8px;color:var(--dim)}
+
+/* Log */
+.log-table{width:100%;border-collapse:collapse;font-size:10px}
+.log-table th{text-align:left;padding:6px 10px;font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--border);font-weight:400}
+.log-table td{padding:6px 10px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top}
+.log-table td:first-child{color:var(--txt);font-weight:500}
+.log-late{color:#d43a2a}
+.log-pivot{color:#d4920a}
+.log-on{color:#22a866}
+
+/* Momentum */
+.momentum-bar-wrap{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.momentum-label{font-size:9px;color:var(--muted);width:60px;flex-shrink:0}
+.momentum-bar{height:8px;border-radius:4px;min-width:3px;transition:width .4s}
+.momentum-val{font-size:9px;color:var(--dim);width:24px;text-align:right;flex-shrink:0}
+
+/* Inline edit */
+.epic-edit-row{display:none;padding:8px 14px;background:var(--bg);border:1px solid var(--hub);border-radius:5px;margin-top:-4px;margin-bottom:2px;gap:8px;align-items:center}
+.epic-edit-row.open{display:flex}
+.epic-edit-input{flex:1;background:transparent;border:none;border-bottom:1px solid var(--border2);color:var(--txt);font-family:'DM Mono',monospace;font-size:10px;padding:3px 0;outline:none}
+.epic-edit-input:focus{border-bottom-color:var(--hub)}
+.epic-rag-btn{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color .15s;flex-shrink:0}
+.epic-rag-btn.sel{border-color:var(--txt)}
+
+/* tooltip */
+.tip{position:fixed;pointer-events:none;background:rgba(30,28,26,.93);border:1px solid var(--border2);border-radius:5px;padding:8px 12px;font-size:10px;color:#f0ede8;max-width:220px;z-index:200;opacity:0;transition:opacity .12s;line-height:1.6}
+
+/* ════════════════════════════════
+   VIEW 6 — RECENTS
+════════════════════════════════ */
+#v-recents{flex:1;overflow:hidden;flex-direction:column}
+.rc-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.rc-filter{background:var(--border);border:1px solid var(--border2);color:var(--muted);font-family:'DM Mono',monospace;font-size:9px;padding:4px 9px;border-radius:4px;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;transition:all .15s}
+.rc-filter:hover,.rc-filter.on{background:var(--s2);color:var(--txt);border-color:var(--border2)}
+.rc-search{background:var(--bg);border:1px solid var(--border);color:var(--txt);font-family:'DM Mono',monospace;font-size:10px;padding:4px 10px;border-radius:4px;outline:none;width:200px;margin-left:auto}
+.rc-search:focus{border-color:var(--border2)}
+.rc-scroll{flex:1;overflow-y:auto;padding:0 20px 20px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.rc-group-hd{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:14px 0 6px;border-bottom:1px solid var(--border);margin-bottom:2px;display:flex;align-items:center;gap:8px;position:sticky;top:0;background:var(--bg);z-index:1}
+.rc-group-badge{font-size:8px;padding:1px 6px;border-radius:10px;background:var(--border);color:var(--dim)}
+.rc-row{display:flex;align-items:flex-start;gap:12px;padding:10px 4px;border-bottom:1px solid var(--border);cursor:pointer;transition:all .1s;border-radius:4px}
+.rc-row:hover{background:var(--s1);padding-left:10px}
+.rc-status{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.rc-main{flex:1;min-width:0}
+.rc-title{font-size:11px;color:var(--txt);font-weight:500;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-summary{font-size:10px;color:var(--muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rc-meta{display:flex;gap:8px;align-items:center;margin-top:5px;flex-wrap:wrap}
+.rc-date{font-size:9px;color:var(--dim)}
+.rc-epic-tag{font-size:8px;padding:1px 7px;border-radius:10px;cursor:pointer;border:1px solid;transition:all .12s;white-space:nowrap}
+.rc-staleness{font-size:8px;padding:1px 6px;border-radius:3px}
+.rc-open{font-size:9px;color:var(--notion);text-decoration:none;flex-shrink:0;padding:2px 7px;border:1px solid rgba(0,160,138,.25);border-radius:3px;transition:all .12s;align-self:flex-start}
+.rc-open:hover{background:rgba(0,160,138,.08)}
+.rc-epic-picker{display:none;gap:4px;flex-wrap:wrap;margin-top:5px}
+.rc-epic-picker.open{display:flex}
+.rc-epic-opt{font-size:8px;padding:2px 7px;border-radius:10px;cursor:pointer;background:var(--border);border:1px solid var(--border2);color:var(--muted);transition:all .12s;white-space:nowrap}
+.rc-epic-opt:hover{color:var(--txt);background:var(--s2)}
+</style>
+</head>
+<body>
+
+<!-- TAB BAR -->
+<div class="tabbar">
+  <div class="logo">JGB Brain Visuals</div>
+  <div class="tab active" onclick="switchTab('tree')" id="tab-tree">
+    <span class="tab-icon">🗂</span> Hierarchy <span class="badge" id="b-tree">—</span>
+  </div>
+  <div class="tab" onclick="switchTab('cluster')" id="tab-cluster">
+    <span class="tab-icon">🔵</span> Semantic Clusters <span class="badge" id="b-cluster">—</span>
+  </div>
+  <div class="tab" onclick="switchTab('timeline')" id="tab-timeline">
+    <span class="tab-icon">📅</span> Timeline <span class="badge" id="b-timeline">—</span>
+  </div>
+  <div class="tab" onclick="switchTab('graph')" id="tab-graph">
+    <span class="tab-icon">🕸</span> Knowledge Graph <span class="badge" id="b-graph">—</span>
+  </div>
+  <div class="tab" onclick="switchTab('dashboard')" id="tab-dashboard">
+    <span class="tab-icon">📊</span> Dashboard
+  </div>
+  <div class="tab" onclick="switchTab('recents')" id="tab-recents">
+    <span class="tab-icon">🕐</span> Recents
+  </div>
+  <div class="spacer"></div>
+</div>
+
+<!-- VIEW 1: HIERARCHY -->
+<div class="view active" id="v-tree">
+  <div class="vsplit" id="tree-vsplit">
+    <div class="vsplit-top" id="tree-top">
+      <svg id="tree-svg"></svg>
+    </div>
+    <div class="vsplit-bar" id="tree-bar"></div>
+    <div class="vsplit-bottom">
+      <div class="tp-head"><span>Workspace Index</span><span id="tree-count" style="color:var(--dim)">—</span></div>
+      <div class="tp-body" id="tree-list"><div style="color:var(--dim);font-size:10px">Click any node to see it here. Dbl-click to open source.</div></div>
+      <div class="tp-legend">
+        <div class="tp-leg-row"><div class="tp-leg-dot" style="background:#00a08a"></div>Notion</div>
+        <div class="tp-leg-row"><div class="tp-leg-dot" style="background:#d4880a"></div>Drive</div>
+        <div class="tp-leg-row"><div class="tp-leg-dot" style="background:#6344e0"></div>Brain</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW 2: CLUSTER -->
+<div class="view" id="v-cluster">
+  <div class="vsplit" id="cluster-vsplit">
+    <div class="vsplit-top" id="cluster-top">
+      <svg id="cluster-svg"></svg>
+    </div>
+    <div class="vsplit-bar" id="cluster-bar"></div>
+    <div class="vsplit-bottom">
+      <div class="cp-head">Cluster Directory — hover bubble for detail</div>
+      <div class="cp-body" id="cluster-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW 3: TIMELINE -->
+<div class="view" id="v-timeline">
+  <div class="tl-controls">
+    <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Filter:</span>
+    <button class="tl-filter on" id="tf-all"   onclick="tlFilter('all')">All</button>
+    <button class="tl-filter"   id="tf-notion" onclick="tlFilter('notion')">Notion</button>
+    <button class="tl-filter"   id="tf-brain"  onclick="tlFilter('brain')">Brain</button>
+    <button class="tl-filter"   id="tf-drive"  onclick="tlFilter('drive')">Drive</button>
+  </div>
+  <div class="tl-scroll" id="tl-scroll"></div>
+</div>
+
+<!-- VIEW 4: KNOWLEDGE GRAPH -->
+<div class="view" id="v-graph">
+  <div class="vsplit" id="graph-vsplit">
+    <div class="vsplit-top" id="graph-top">
+      <svg id="graph-svg"></svg>
+    </div>
+    <div class="vsplit-bar" id="graph-bar"></div>
+    <div class="vsplit-bottom">
+      <div class="gs-head">
+        <span>Node Inspector</span>
+        <span id="g-stats" style="color:var(--dim)">—</span>
+      </div>
+      <div class="gs-search"><input id="g-search" placeholder="Search nodes…" oninput="gFilter(this.value)"></div>
+      <div class="gs-inner">
+        <div class="gs-body" id="g-body">← Click a node to inspect</div>
+        <div class="gs-sidebar">
+          <div class="gs-legend">
+            <div class="gs-leg-row" onclick="gFilterType('hub')"><div class="gs-leg-dot" style="background:#d4920a;box-shadow:0 0 4px #d4920a66"></div>Theme Hubs</div>
+            <div class="gs-leg-row" onclick="gFilterType('brain')"><div class="gs-leg-dot" style="background:#6344e0;box-shadow:0 0 4px #6344e066"></div>JGB Brain</div>
+            <div class="gs-leg-row" onclick="gFilterType('notion')"><div class="gs-leg-dot" style="background:#00a08a;box-shadow:0 0 4px #00a08a66"></div>Notion</div>
+            <div class="gs-leg-row" onclick="gFilterType('drive')"><div class="gs-leg-dot" style="background:#d4880a;box-shadow:0 0 4px #d4880a66"></div>Drive</div>
+          </div>
+          <div class="gs-ctrl">
+            <button class="gs-btn" onclick="gReset()">Reset</button>
+            <button class="gs-btn" onclick="gToggleLabels()">Labels</button>
+            <button class="gs-btn" onclick="gReheat()">Shake</button>
+            <button class="gs-btn" onclick="gFilterType(null)">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW 5: DASHBOARD -->
+<div class="view" id="v-dashboard">
+  <div id="db-inner" style="padding:20px 24px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:18px">
+
+    <!-- Top stat row -->
+    <div class="db-row">
+      <div class="db-card">
+        <div class="db-card-title">EPIC Progress</div>
+        <div class="db-card-val" id="db-epic-pct">—</div>
+        <div class="db-card-sub" id="db-epic-sub">goals this month</div>
+      </div>
+      <div class="db-card">
+        <div class="db-card-title">Week Completion</div>
+        <div class="db-card-val" id="db-week-pct">—</div>
+        <div class="db-card-sub" id="db-week-sub">tasks this week</div>
+      </div>
+      <div class="db-card">
+        <div class="db-card-title">Tardiness Score</div>
+        <div class="db-card-val" id="db-late-score" style="color:#d43a2a">—</div>
+        <div class="db-card-sub">items carried 2+ weeks</div>
+      </div>
+      <div class="db-card">
+        <div class="db-card-title">Pivot Count</div>
+        <div class="db-card-val" id="db-pivot-score" style="color:#d4920a">—</div>
+        <div class="db-card-sub">goals changed mid-EPIC</div>
+      </div>
+    </div>
+
+    <!-- EPIC Goals -->
+    <div>
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+        <span>🎯 EPIC — May 2026 <a href="https://www.notion.so/36411273cc718120a1c9f91e4df805f3" target="_blank" style="color:var(--notion);margin-left:8px;font-size:8px">↗ Open in Notion</a></span>
+        <span style="color:var(--dim);font-size:8px">RAG auto from recency · click to override</span>
+      </div>
+      <div class="epic-grid" id="epic-grid"></div>
+    </div>
+
+    <!-- Weekly priorities + momentum side by side -->
+    <div class="db-row" style="align-items:flex-start">
+
+      <!-- Weekly panel -->
+      <div style="flex:1.4;min-width:280px">
+        <div class="week-panel">
+          <div class="week-header">
+            <div class="week-title" id="week-label">Week of 2026-05-18</div>
+            <div class="week-actions">
+              <button class="db-btn" onclick="dbAddTask()">+ Add</button>
+              <button class="db-btn primary" onclick="dbWeekReset()">↻ Reset Week</button>
+            </div>
+          </div>
+          <div class="week-items" id="week-items"></div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <div style="font-size:9px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Next week recommendation</div>
+            <div id="db-next-rec" style="font-size:10px;color:var(--muted);line-height:1.8"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Momentum -->
+      <div style="flex:1;min-width:200px">
+        <div class="week-panel" style="height:100%">
+          <div class="week-header"><div class="week-title">30-Day Momentum</div></div>
+          <div id="momentum-bars"></div>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+            <div style="font-size:9px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em">Week type</div>
+            <div id="week-type-label" style="font-size:11px;color:var(--txt)">—</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Log -->
+    <div>
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">📋 Weekly Log — Tardiness &amp; Pivots</div>
+      <div style="background:var(--s1);border:1px solid var(--border);border-radius:6px;overflow:hidden">
+        <table class="log-table">
+          <thead><tr>
+            <th>Week</th><th>✅ Done</th><th>🔶 Carried</th><th>🔄 Pivoted</th><th>Impact</th>
+          </tr></thead>
+          <tbody id="log-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- VIEW 6: RECENTS -->
+<div class="view" id="v-recents">
+  <div class="rc-toolbar">
+    <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Status:</span>
+    <button class="rc-filter on" id="rcf-all"     onclick="rcFilter('all')">All</button>
+    <button class="rc-filter"   id="rcf-stalled"  onclick="rcFilter('stalled')">🔴 Stalled</button>
+    <button class="rc-filter"   id="rcf-active"   onclick="rcFilter('active')">🟡 Active</button>
+    <button class="rc-filter"   id="rcf-complete" onclick="rcFilter('complete')">🟢 Complete</button>
+    <span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-left:8px">EPIC:</span>
+    <button class="rc-filter"   id="rcf-untagged" onclick="rcFilter('untagged')">Untagged</button>
+    <input class="rc-search" id="rc-search" placeholder="Search titles…" oninput="rcSearch(this.value)">
+  </div>
+  <div class="rc-scroll" id="rc-scroll"></div>
+</div>
+
+<div class="status" id="status">Loading…</div>
+<div class="tip" id="tip"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// DASHBOARD DATA & ENGINE
+// ════════════════════════════════════════════════════════════
+
+// EPIC goals — synced from Notion EPIC page
+// RAG: 'g'=green, 'a'=amber, 'r'=red
+// lastActivity: last known date of meaningful work
+const EPIC_GOALS = [
+  { id:1, label:'Ship Cognitive Infra Sprint 4 (Semi-Automation)', rag:'a', lastActivity:'2026-05-14', notionUrl:'https://www.notion.so/35f11273cc718179adeacb1bd5619cb4' },
+  { id:2, label:'FAB course — launch-ready (waitlist live, Kajabi set up)', rag:'a', lastActivity:'2026-05-13', notionUrl:'https://www.notion.so/35e11273cc71808fab9becbb5adfc7b4' },
+  { id:3, label:'Commercial Plan — identify 3–6 MVPs to validate', rag:'a', lastActivity:'2026-05-18', notionUrl:'https://www.notion.so/35d11273cc71801c8463eb7f8c5ba4ee' },
+  { id:4, label:'Cowork Email Ops — live and running daily', rag:'g', lastActivity:'2026-05-18', notionUrl:'https://www.notion.so/36411273cc7181f8b123ec2dddb89c59' },
+  { id:5, label:'JANA AI Acceleration — Phase 1 velocity metrics published', rag:'r', lastActivity:'2026-05-15', notionUrl:'https://www.notion.so/36411273cc718102a723d0f9e98b2d6a' },
+  { id:6, label:'Distill 10 articles from Attia Inbox into JGB Brain', rag:'r', lastActivity:null, notionUrl:null },
+];
+
+// Recency thresholds for auto-RAG
+// green: touched in last 3 days, amber: 4-7 days, red: 8+ days
+function autoRag(lastActivity){
+  if(!lastActivity) return 'r';
+  const days = Math.floor((new Date('2026-05-18') - new Date(lastActivity)) / 86400000);
+  if(days <= 3) return 'g';
+  if(days <= 7) return 'a';
+  return 'r';
+}
+
+// Weekly tasks — stored in memory (survives session via JS state)
+// status: 'todo','done','carried','dropped'
+let weekTasks = [
+  { id:1, label:'EPIC 1 — Complete Sprint 4 automation tasks', epicId:1, status:'todo' },
+  { id:2, label:'EPIC 2 — Set up Kajabi waitlist page', epicId:2, status:'todo' },
+  { id:3, label:'EPIC 4 — Run Cowork email ops 5 days straight', epicId:4, status:'done' },
+  { id:4, label:'EPIC 6 — Distill 3 Attia articles', epicId:6, status:'todo' },
+];
+
+// Weekly log — tracks history
+let weekLog = [
+  { week:'2026-05-11', done:0, carried:0, pivoted:0, impact:'First tracked week — baseline set' },
+];
+
+// Pivot count (manual)
+let pivotCount = 1; // Commercial goal reframed today
+
+// 30-day momentum data (Brain captures + Notion edits by week)
+const MOMENTUM = [
+  { week:'Apr 27', brain:12, notion:8, drive:3 },
+  { week:'May 4',  brain:18, notion:11, drive:8 },
+  { week:'May 11', brain:9,  notion:14, drive:2 },
+  { week:'May 18', brain:15, notion:20, drive:4 },
+];
+
+// ── RENDER EPIC GRID ──
+function renderEpicGrid(){
+  const grid = document.getElementById('epic-grid');
+  grid.innerHTML = '';
+  let green=0, amber=0, red=0;
+
+  EPIC_GOALS.forEach(g => {
+    const autoR = autoRag(g.lastActivity);
+    const rag = g.ragOverride || autoR; // manual override wins
+    if(rag==='g') green++;
+    else if(rag==='a') amber++;
+    else red++;
+
+    const days = g.lastActivity
+      ? Math.floor((new Date('2026-05-18') - new Date(g.lastActivity)) / 86400000)
+      : null;
+    const daysLabel = days===null ? 'no activity' : days===0 ? 'today' : `${days}d ago`;
+
+    const row = document.createElement('div');
+    row.className = 'epic-row';
+    row.innerHTML = `
+      <div class="epic-rag rag-${rag}"></div>
+      <div class="epic-num">${g.id}</div>
+      <div class="epic-label">${g.label}</div>
+      <div class="epic-days">${daysLabel}</div>
+      <button class="epic-adj" onclick="toggleEpicEdit(${g.id},event)">adjust</button>
+      ${g.notionUrl ? `<a href="${g.notionUrl}" target="_blank" style="font-size:9px;color:var(--notion);text-decoration:none;margin-left:2px">↗</a>` : ''}
+    `;
+    grid.appendChild(row);
+
+    // Edit row
+    const edit = document.createElement('div');
+    edit.className = 'epic-edit-row';
+    edit.id = `epic-edit-${g.id}`;
+    edit.innerHTML = `
+      <div style="font-size:9px;color:var(--muted);flex-shrink:0">Label:</div>
+      <input class="epic-edit-input" id="epic-input-${g.id}" value="${g.label}" onchange="updateEpicLabel(${g.id},this.value)">
+      <div style="font-size:9px;color:var(--muted);margin-left:8px;flex-shrink:0">RAG:</div>
+      <div class="epic-rag-btn rag-g ${rag==='g'?'sel':''}" onclick="setRagOverride(${g.id},'g')" title="Green"></div>
+      <div class="epic-rag-btn rag-a ${rag==='a'?'sel':''}" onclick="setRagOverride(${g.id},'a')" title="Amber"></div>
+      <div class="epic-rag-btn rag-r ${rag==='r'?'sel':''}" onclick="setRagOverride(${g.id},'r')" title="Red"></div>
+      <div class="epic-rag-btn" style="background:var(--border);${!g.ragOverride?'border-color:var(--txt)':''}" onclick="clearRagOverride(${g.id})" title="Auto">A</div>
+      <button class="db-btn" onclick="toggleEpicEdit(${g.id},event)" style="margin-left:auto">Done</button>
+    `;
+    grid.appendChild(edit);
+  });
+
+  // Update stat cards
+  const total = EPIC_GOALS.length;
+  const done = green;
+  document.getElementById('db-epic-pct').textContent = `${done}/${total}`;
+  document.getElementById('db-epic-sub').textContent = `green · ${amber} amber · ${red} red`;
+}
+
+function toggleEpicEdit(id, e){
+  e.stopPropagation();
+  const el = document.getElementById(`epic-edit-${id}`);
+  el.classList.toggle('open');
+}
+
+function updateEpicLabel(id, val){
+  const g = EPIC_GOALS.find(x=>x.id===id);
+  if(g) g.label = val;
+  renderEpicGrid();
+}
+
+function setRagOverride(id, rag){
+  const g = EPIC_GOALS.find(x=>x.id===id);
+  if(g) g.ragOverride = rag;
+  renderEpicGrid();
+}
+
+function clearRagOverride(id){
+  const g = EPIC_GOALS.find(x=>x.id===id);
+  if(g) delete g.ragOverride;
+  renderEpicGrid();
+}
+
+// ── RENDER WEEKLY TASKS ──
+function renderWeekTasks(){
+  const container = document.getElementById('week-items');
+  container.innerHTML = '';
+  const done = weekTasks.filter(t=>t.status==='done').length;
+  const total = weekTasks.filter(t=>t.status!=='dropped').length;
+  document.getElementById('db-week-pct').textContent = `${done}/${total}`;
+  document.getElementById('db-week-sub').textContent = 'tasks completed this week';
+
+  weekTasks.forEach(t => {
+    if(t.status === 'dropped') return;
+    const item = document.createElement('div');
+    item.className = 'week-item';
+    const isDone = t.status === 'done';
+    const isCarried = t.status === 'carried';
+    item.innerHTML = `
+      <div class="week-check ${isDone?'done':isCarried?'carried':''}" onclick="toggleTask(${t.id})">${isDone?'✓':isCarried?'→':''}</div>
+      <div class="week-item-label ${isDone?'done':''}">${t.label}</div>
+      <div class="week-item-src">EPIC ${t.epicId}</div>
+    `;
+    container.appendChild(item);
+  });
+
+  renderNextRec();
+}
+
+function toggleTask(id){
+  const t = weekTasks.find(x=>x.id===id);
+  if(!t) return;
+  const cycle = {todo:'done', done:'carried', carried:'todo'};
+  t.status = cycle[t.status] || 'todo';
+  renderWeekTasks();
+  renderStats();
+}
+
+function dbAddTask(){
+  const label = prompt('New task:');
+  if(!label) return;
+  const epicId = parseInt(prompt('EPIC goal # (1-6):')) || 0;
+  weekTasks.push({ id: Date.now(), label, epicId, status:'todo' });
+  renderWeekTasks();
+}
+
+function dbWeekReset(){
+  // Log this week
+  const done = weekTasks.filter(t=>t.status==='done').length;
+  const carried = weekTasks.filter(t=>t.status==='carried').length;
+  const dropped = weekTasks.filter(t=>t.status==='dropped').length;
+  const totalDone = done + carried + dropped;
+  const lateScore = carried > 2 ? '⚠ High carry' : carried > 0 ? 'Some carry' : 'Clean';
+  weekLog.unshift({
+    week: new Date().toISOString().slice(0,10),
+    done, carried, pivoted: pivotCount,
+    impact: lateScore
+  });
+
+  // Carry unfinished tasks, reset done
+  weekTasks = weekTasks
+    .filter(t => t.status !== 'dropped')
+    .map(t => ({...t, status: t.status==='done' ? 'done_last' : t.status==='todo' ? 'carried' : t.status}))
+    .filter(t => t.status !== 'done_last'); // remove completed from last week
+
+  renderWeekTasks();
+  renderLog();
+  renderStats();
+  setStatus('Week reset. Carried tasks moved forward. Log updated.');
+}
+
+// ── RENDER NEXT WEEK RECOMMENDATIONS ──
+function renderNextRec(){
+  const red = EPIC_GOALS.filter(g=>(g.ragOverride||autoRag(g.lastActivity))==='r');
+  const amber = EPIC_GOALS.filter(g=>(g.ragOverride||autoRag(g.lastActivity))==='a');
+  const carried = weekTasks.filter(t=>t.status==='carried');
+
+  let html = '';
+  if(red.length) html += red.map(g=>`🔴 Push on <strong>EPIC ${g.id}</strong> — ${g.label.split(' ').slice(0,6).join(' ')}…`).join('<br>');
+  if(amber.length) html += (html?'<br>':'') + amber.slice(0,2).map(g=>`🟡 Keep momentum on <strong>EPIC ${g.id}</strong>`).join('<br>');
+  if(carried.length) html += (html?'<br>':'') + `🔶 ${carried.length} carried task${carried.length>1?'s':''} need closing before adding new work`;
+  if(!html) html = '✅ All green — maintain cadence';
+  document.getElementById('db-next-rec').innerHTML = html;
+}
+
+// ── MOMENTUM BARS ──
+function renderMomentum(){
+  const container = document.getElementById('momentum-bars');
+  const max = Math.max(...MOMENTUM.flatMap(w=>[w.brain,w.notion,w.drive]));
+  container.innerHTML = '';
+
+  MOMENTUM.forEach(w => {
+    const total = w.brain + w.notion + w.drive;
+    container.innerHTML += `
+      <div style="margin-bottom:8px">
+        <div style="font-size:8px;color:var(--dim);margin-bottom:3px">${w.week}</div>
+        <div class="momentum-bar-wrap"><div class="momentum-label" style="color:#6344e0">Brain</div><div class="momentum-bar" style="width:${(w.brain/max)*100}%;background:#6344e060;border:1px solid #6344e088"></div><div class="momentum-val">${w.brain}</div></div>
+        <div class="momentum-bar-wrap"><div class="momentum-label" style="color:#00a08a">Notion</div><div class="momentum-bar" style="width:${(w.notion/max)*100}%;background:#00a08a60;border:1px solid #00a08a88"></div><div class="momentum-val">${w.notion}</div></div>
+        <div class="momentum-bar-wrap"><div class="momentum-label" style="color:#d4880a">Drive</div><div class="momentum-bar" style="width:${(w.drive/max)*100}%;background:#d4880a60;border:1px solid #d4880a88"></div><div class="momentum-val">${w.drive}</div></div>
+      </div>`;
+  });
+
+  // Week type label
+  const latest = MOMENTUM[MOMENTUM.length-1];
+  const weekType = latest.notion > latest.brain ? '📝 Build week (Notion-heavy)' :
+                   latest.brain > latest.notion ? '🧠 Thinking week (Brain-heavy)' :
+                   '⚡ Balanced week';
+  document.getElementById('week-type-label').textContent = weekType;
+}
+
+// ── LOG ──
+function renderLog(){
+  const body = document.getElementById('log-body');
+  body.innerHTML = '';
+  weekLog.forEach(row => {
+    const lateClass = row.carried > 2 ? 'log-late' : row.carried > 0 ? 'log-pivot' : 'log-on';
+    body.innerHTML += `<tr>
+      <td>${row.week}</td>
+      <td class="log-on">${row.done}</td>
+      <td class="${lateClass}">${row.carried}</td>
+      <td class="${row.pivoted>0?'log-pivot':''}">${row.pivoted}</td>
+      <td>${row.impact}</td>
+    </tr>`;
+  });
+}
+
+// ── STATS ──
+function renderStats(){
+  const carried = weekLog.reduce((a,r)=>a+r.carried,0);
+  const pivots = weekLog.reduce((a,r)=>a+r.pivoted,0) + pivotCount;
+  document.getElementById('db-late-score').textContent = carried;
+  document.getElementById('db-pivot-score').textContent = pivots;
+}
+
+function renderDashboard(){
+  renderEpicGrid();
+  renderWeekTasks();
+  renderMomentum();
+  renderLog();
+  renderStats();
+  setStatus('Dashboard — 🎯 EPIC May 2026 · RAG auto from recency · click goal to adjust · Reset Week to log progress');
+}
+</script>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// VERTICAL SPLIT ENGINE
+const splits = {
+  tree:    { vsplit:'tree-vsplit',    top:'tree-top',    bar:'tree-bar',    defaultRatio:0.65 },
+  cluster: { vsplit:'cluster-vsplit', top:'cluster-top', bar:'cluster-bar', defaultRatio:0.65 },
+  graph:   { vsplit:'graph-vsplit',   top:'graph-top',   bar:'graph-bar',   defaultRatio:0.65 },
+};
+
+function initVSplit(key){
+  const s = splits[key];
+  const vsplit = document.getElementById(s.vsplit);
+  const top    = document.getElementById(s.top);
+  const bar    = document.getElementById(s.bar);
+
+  function setTopHeight(px){
+    const total = vsplit.clientHeight;
+    const clamped = Math.max(80, Math.min(total - 80, px));
+    top.style.height = clamped + 'px';
+    s.currentPx = clamped;
+    // notify renders
+    if(key==='tree') renderTree();
+    if(key==='cluster') renderCluster();
+    if(key==='graph' && gGraphBuilt) gResize();
+  }
+
+  // Set initial height
+  const total = vsplit.clientHeight;
+  const initH = total > 0 ? total * s.defaultRatio : 400;
+  top.style.height = initH + 'px';
+  s.currentPx = initH;
+
+  bar.addEventListener('mousedown', e=>{
+    e.preventDefault();
+    bar.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'row-resize';
+    const startY   = e.clientY;
+    const startH   = top.offsetHeight;
+    const onMove   = ev => setTopHeight(startH + (ev.clientY - startY));
+    const onUp     = ()=>{
+      bar.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function getSVGSize(topId){
+  const el = document.getElementById(topId);
+  return { w: el.offsetWidth, h: el.offsetHeight };
+}
+
+// ════════════════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════════════════
+
+// HIERARCHY: Workspace → Section → Page
+const TREE = {
+  name:'GJB Workspace', type:'root', children:[
+    { name:'10xP / Cognitive', type:'section', color:'#7c5cfc', children:[
+      {name:'Cognitive Infrastructure',   type:'notion', url:'https://www.notion.so/35f11273cc7181208dbffbace505b2e5?pvs=1', date:'2026-05-13', desc:'Cross-LLM operating rules, decision memory, workflow governance'},
+      {name:'Cognitive Infra Sprint Plan',type:'notion', url:'https://www.notion.so/35f11273cc718179adeacb1bd5619cb4?pvs=1', date:'2026-05-14', desc:'Sprint 4: Semi-Automation. Sprint structure + ADR database'},
+      {name:'Second Brain Architecture',  type:'notion', url:'https://www.notion.so/35a11273cc71818ca882e5de66007b03?pvs=1', date:'2026-05-11', desc:'PKM system design, automation, Jones reference material'},
+      {name:'Decision Memory Design',     type:'notion', url:'https://www.notion.so/35f11273cc7181308a76f96700525dfe?pvs=1', date:'2026-05-13', desc:'Cross-project automation philosophy, cognitive continuity'},
+      {name:'Notion Schema Design v1',    type:'notion', url:'https://www.notion.so/36111273cc7181c39b4ce3823e4014c2?pvs=1', date:'2026-05-15', desc:'Tag taxonomy, type rules, schema governance'},
+      {name:'My Openbrain',              type:'notion', url:'https://www.notion.so/35d11273cc718030afffead32767b87e?pvs=1', date:'2026-05-14', desc:'JGB Brain Supabase setup, enrichment, habits'},
+      {name:'JGB Brain Habits & Enrichment',type:'notion',url:'https://www.notion.so/36011273cc718104b964f0b3585d0bdb?pvs=1',date:'2026-05-14',desc:'Capture habits, enrichment tactics, clarification log'},
+      {name:'Shortcuts & Triggers Ref',  type:'notion', url:'https://www.notion.so/35d11273cc7181af8b90d9761f3caf87?pvs=1', date:'2026-05-15', desc:'#tpl, #sb, #qa, #verify and other shortcut definitions'},
+      {name:'Dev Backlog',               type:'notion', url:'https://www.notion.so/35d11273cc7181ac92a8ef0dbf7b7a23?pvs=1', date:'2026-05-15', desc:'Brain dashboard, marker shell, git identity, iCloud symlinks'},
+      {name:'Dev Lessons Learned',       type:'notion', url:'https://www.notion.so/35d11273cc7181c7887cf58b8933c70a?pvs=1', date:'2026-05-13', desc:'SHIP protocol, sprint close checklist, git workflow'},
+      {name:'gmail-to-openbrain Sprints', type:'notion', url:'https://www.notion.so/35d11273cc7181669836ebe100a8710d?pvs=1', date:'2026-05-13', desc:'All sprint records for gmail import pipeline'},
+      {name:'Second Mac Setup — Meaford',type:'notion', url:'https://www.notion.so/35c11273cc71817191f9d383eddfc46f?pvs=1', date:'2026-05-11', desc:'iCloud paths, OpenBrain sync, git config for Meaford Mac'},
+    ]},
+    { name:'Commercial / Strategy', type:'section', color:'#00c2a8', children:[
+      {name:'Commercial Plan',           type:'notion', url:'https://www.notion.so/35d11273cc71801c8463eb7f8c5ba4ee?pvs=1', date:'2026-05-18', desc:'Business candidates, operator notes, LinkedIn essays, daily logs'},
+      {name:'My AI Angle v1',            type:'notion', url:'https://www.notion.so/35d11273cc718079a2c6c800bd7d30b3?pvs=1', date:'2026-05-14', desc:'Personal AI strategy: orchestration, synthesis, decision support'},
+      {name:'Commercial Concepts',       type:'notion', url:'https://www.notion.so/35d11273cc7180fba6ece1d3a48b6ec8?pvs=1', date:'2026-05-14', desc:'Idea space for commercial ventures'},
+      {name:'Ideal Businesses',          type:'notion', url:'https://www.notion.so/905712a1b2574bf0bab354d7b32a363a?pvs=1', date:'2026-05-14', desc:'Business candidate evaluation against life goals'},
+      {name:'Brand Idea',                type:'notion', url:'https://www.notion.so/35f11273cc71816a9b03e8f0e2225457?pvs=1', date:'2026-05-14', desc:'"Automation maximalism" — personal productivity brand concept'},
+      {name:'Competitive Landscape',     type:'notion', url:'https://www.notion.so/36411273cc71810597f7c5c8435f8d2a?pvs=1', date:'2026-05-18', desc:'5 business candidates — AI tools, Alyna, Alfred, Sliq, Chore'},
+      {name:'Commercial Insights Deep Pass',type:'notion',url:'https://www.notion.so/36111273cc718111bb5df4a51c15c6d0?pvs=1',date:'2026-05-15',desc:'JGB Brain mining for core value, PrimeFusion patterns, JANA'},
+      {name:'AI Thin Ice — Job Audit',   type:'notion', url:'https://www.notion.so/35911273cc7181d2abe3e293d8c9d34b?pvs=1', date:'2026-05-14', desc:'TCLD job audit — protect D work, strategy judgment calls'},
+      {name:'Agent Scaffolding MCP',     type:'notion', url:'https://www.notion.so/35c11273cc7181c5810cc07f754799c7?pvs=1', date:'2026-05-10', desc:'Prompts → skills → plugins → MCPs mental model'},
+    ]},
+    { name:'FAB — Aesthetic Clinic', type:'section', color:'#ff6b9d', children:[
+      {name:'FAB Hub',                   type:'notion', url:'https://www.notion.so/35e11273cc71808fab9becbb5adfc7b4?pvs=1', date:'2026-05-14', desc:'Parent page for all FAB assets'},
+      {name:'FAB Brief',                 type:'notion', url:'https://www.notion.so/35e11273cc71803c800aec016841a4e1?pvs=1', date:'2026-05-12', desc:'Product & Market brief for FAB course'},
+      {name:'FAB Launch Recommendation', type:'notion', url:'https://www.notion.so/35e11273cc71811f8ecccb43d45437fb?pvs=1', date:'2026-05-12', desc:'Injector-only ed, course above tips & tricks, Kajabi launch'},
+      {name:'FAB Lead Gen Rec',          type:'notion', url:'https://www.notion.so/35e11273cc71816d8f2ee9570ac683a4?pvs=1', date:'2026-05-12', desc:'Business OS for aesthetic practitioners — lead gen strategy'},
+      {name:'FAB Web V2',                type:'notion', url:'https://www.notion.so/35e11273cc71818d92bbc3d1f9b9f1b2?pvs=1', date:'2026-05-13', desc:'Landing page structure, FBA client-facing brand'},
+      {name:'FAB FBA Project Log',       type:'notion', url:'https://www.notion.so/35e11273cc718169bd38e60775f39a6c?pvs=1', date:'2026-05-12', desc:'Persistent op memory — beyond discovery into implementation'},
+      {name:'FAB Branding Kit',          type:'notion', url:'https://www.notion.so/b91979c8b83848e0b80c3551d3c43745?pvs=1', date:'2026-05-12', desc:'Operating brief draft — brand, colours, tone'},
+      {name:'FAB Curriculum (Drive)',    type:'drive',  url:'https://drive.google.com/file/d/1DhfSDExtL20cpwkTHbcHou6vFKyWfSxF/view', date:'2026-05-13', desc:'Module outline: Legal, Strategy, Finance, Marketing, Sales, Ops'},
+      {name:'FAB Full Script — Legal',   type:'drive',  url:'https://drive.google.com/file/d/1c7mpZFEw4VNFeUDhVwjyEdHBxfBc3kzf/view', date:'2026-05-04', desc:'Module 1 full script — structures, compliance, risk'},
+      {name:'FAB Script — Marketing',    type:'drive',  url:'https://drive.google.com/file/d/1KdxWAirHPM6BMpYTFfgoctB08Gvhsdpu/view', date:'2026-05-04', desc:'Patient journey, SEO, ads, email funnels'},
+      {name:'FAB Script — Sales',        type:'drive',  url:'https://drive.google.com/file/d/1Rqxd25cf0EvXgQ-0XsrulPhblKS0TNaG/view', date:'2026-05-04', desc:'CRM, consultative selling, retention'},
+      {name:'FAB Script — Finance',      type:'drive',  url:'https://drive.google.com/file/d/1ehbWj_YAyTJ0J59pasdmV_3Ehh1nEy5t/view', date:'2026-05-04', desc:'P&L, KPIs, startup costs, break-even'},
+      {name:'FAB Script — Strategy',     type:'drive',  url:'https://drive.google.com/file/d/1vX1RWs-SDMUDVfrh_rfn0tKAykiKiEhn/view', date:'2026-05-04', desc:'UVP, positioning, competitor analysis, roadmap'},
+      {name:'FAB Script — Operations',   type:'drive',  url:'https://drive.google.com/file/d/1O6_Vs30l2R-DHP72qXuTkC3usMNnE9g6/view', date:'2026-05-04', desc:'SOPs, scheduling, inventory, daily ops'},
+      {name:'FAB Waitlist Pages (Drive)',type:'drive',  url:'https://drive.google.com/drive/folders/1MkGrVU4iHqHSnJFhJokUivys-Z-kswmG', date:'2026-05-02', desc:'HTML landing page iterations index0–index3'},
+    ]},
+    { name:'AI Acceleration (JANA)', type:'section', color:'#00d4ff', children:[
+      {name:'AI Acceleration Strategy',  type:'notion', url:'https://www.notion.so/36411273cc718102a723d0f9e98b2d6a?pvs=1', date:'2026-05-18', desc:'Phase 1: dev velocity. Phase 2: customer delivery'},
+      {name:'Phase 1 — Dev Velocity',    type:'notion', url:'https://www.notion.so/36411273cc71817cbebfe6e5def753ab?pvs=1', date:'2026-05-18', desc:'Software development velocity metrics dashboard'},
+      {name:'Phase 2 — Customer Systems',type:'notion', url:'https://www.notion.so/36411273cc718185a9a5dce23058cab6?pvs=1', date:'2026-05-18', desc:'Customer systems implementation phase'},
+      {name:'Governance & Measurement',  type:'notion', url:'https://www.notion.so/36411273cc718106b59aef521e07144e?pvs=1', date:'2026-05-18', desc:'Master metrics dashboard for AI acceleration'},
+      {name:'DORA AI ROI',               type:'notion', url:'https://www.notion.so/35a11273cc718160a438cac4f27c3bb5?pvs=1', date:'2026-05-15', desc:'DORA metrics applied to AI ROI measurement'},
+      {name:'AI Code Maintainability',   type:'notion', url:'https://www.notion.so/36411273cc7181afb365ea38225937fe?pvs=1', date:'2026-05-18', desc:'Does AI create a slop nightmare? #JANA #AI #Dev'},
+    ]},
+    { name:'⚙️ Operations', type:'section', color:'#f4a623', children:[
+      {name:'⚙️ Operations Hub',         type:'notion', url:'https://www.notion.so/36111273cc71813c8c69f15866874f40?pvs=1', date:'2026-05-15', desc:'Cowork orientation, Off Limits rules, email ops'},
+      {name:'Cowork Email Ops',          type:'notion', url:'https://www.notion.so/36411273cc7181f8b123ec2dddb89c59?pvs=1', date:'2026-05-18', desc:'Gmail connector, iCloud context files, approval gates'},
+      {name:'📥 Inbox',                  type:'notion', url:'https://www.notion.so/36111273cc718193b923ed64ddbf6a43?pvs=1', date:'2026-05-15', desc:'Daily capture inbox — clear regularly'},
+      {name:'📰 Digest',                 type:'notion', url:'https://www.notion.so/015a3677e7e0406fb8587dade4edf16d?pvs=1', date:'2026-05-18', desc:'Digested reference material, Jones content, daily reading'},
+      {name:'🔍 Review',                 type:'notion', url:'https://www.notion.so/35811273cc71818a856bc67b55f6bcd5?pvs=1', date:'2026-05-14', desc:'Review folder — agent scaffolding, mental models'},
+      {name:'📅 Coming Days',            type:'notion', url:'https://www.notion.so/36011273cc718100bc51f84764a87d97?pvs=1', date:'2026-05-14', desc:'Short-horizon planning and scheduling'},
+    ]},
+    { name:'Marsh Street CC', type:'section', color:'#98fb98', children:[
+      {name:'Marsh FY26 Year End (Drive)',type:'drive',  url:'https://docs.google.com/spreadsheets/d/1VbomiuxMPcWeKrA_d2pukiOw_lyfIEoce0m0byPQgpM/edit', date:'2026-05-11', desc:'BT tracker, board members, deferred concert revenue, capital assets'},
+      {name:'Marsh Deferred Revenue',    type:'drive',  url:'https://docs.google.com/spreadsheets/d/1-f92RcVxF_wZ8y_nMH5BF5JK1qqfcn9X6ShHSulZk7g/edit', date:'2026-04-23', desc:'Concert deferred revenue + prepaid costs March 31 2025'},
+      {name:'Marsh FY25 Financial Notes',type:'drive',  url:'https://docs.google.com/document/d/1uHAsx5iip54Yu-yaqfa0TEqsk6-X6aSu06rP3ahCtpA/edit', date:'2026-04-23', desc:'YoY variance notes: concerts, MSR tuition, grants, hall rental'},
+    ]},
+    { name:'JGB Brain (Memory)', type:'section', color:'#7c5cfc', children:[
+      {name:'Cowork Email Ops Setup',    type:'brain',  date:'2026-05-18', desc:'Gmail connector, iCloud context files, approval gate architecture'},
+      {name:'JGB Brain Foundation',      type:'brain',  date:'2026-05-15', desc:'48,781 thoughts in Supabase 2010–2026. Daily cron running'},
+      {name:'Product Pyramid Strategy',  type:'brain',  date:'2026-05-14', desc:'3-year product state, JTBD, CIM alignment, FY27-28 milestones'},
+      {name:'PrimeFusion Valuation',     type:'brain',  date:'2026-05-20', desc:'On hold — year-end with Bill in June, RLB engagement'},
+      {name:'Marsh Street Board Role',   type:'brain',  date:'2026-05-11', desc:'Board member — FY26 year-end, deferred revenue, grants'},
+      {name:'FA Cup Final 2016',         type:'brain',  date:'2026-05-21', desc:'United beat Palace. LVG out, Mourinho era begins'},
+      {name:'Blue Jays Season 2016',     type:'brain',  date:'2026-05-15', desc:'Happ ERA, Bautista-Odor brawl, Edwin RBI nights'},
+      {name:'Maddie — Vancouver',        type:'brain',  date:'2026-05-11', desc:'Homeopathy clinic internship, first solo adventure'},
+      {name:'RESP Withdrawals',          type:'brain',  date:'2026-05-06', desc:'Maddie 4th/final, Hayley 2nd. Tax treatment query to RBC'},
+      {name:'Raptors Playoff Run',       type:'brain',  date:'2026-05-15', desc:'Learning playoffs — Lowry, Valanciunas stepping up'},
+    ]},
+  ]
+};
+
+// SEMANTIC CLUSTERS — items grouped by meaning not folder
+const CLUSTERS = [
+  { id:'cl-ai-build', label:'AI Infrastructure\n& Build', color:'#7c5cfc', items:[
+    {label:'Cognitive Infrastructure',src:'notion',date:'2026-05-13'},
+    {label:'Cognitive Infra Sprint',src:'notion',date:'2026-05-14'},
+    {label:'Second Brain Architecture',src:'notion',date:'2026-05-11'},
+    {label:'Decision Memory Design',src:'notion',date:'2026-05-13'},
+    {label:'Agent Scaffolding MCP',src:'notion',date:'2026-05-10'},
+    {label:'JGB Brain Foundation',src:'brain',date:'2026-05-15'},
+    {label:'Dev Backlog',src:'notion',date:'2026-05-15'},
+    {label:'gmail-to-openbrain',src:'notion',date:'2026-05-13'},
+    {label:'Notion Schema v1',src:'notion',date:'2026-05-15'},
+    {label:'My Openbrain',src:'notion',date:'2026-05-14'},
+  ]},
+  { id:'cl-commercial', label:'Commercial\nStrategy', color:'#00c2a8', items:[
+    {label:'Commercial Plan',src:'notion',date:'2026-05-18'},
+    {label:'My AI Angle v1',src:'notion',date:'2026-05-14'},
+    {label:'Ideal Businesses',src:'notion',date:'2026-05-14'},
+    {label:'Commercial Concepts',src:'notion',date:'2026-05-14'},
+    {label:'Competitive Landscape',src:'notion',date:'2026-05-18'},
+    {label:'Commercial Insights Deep Pass',src:'notion',date:'2026-05-15'},
+    {label:'Brand Idea',src:'notion',date:'2026-05-14'},
+    {label:'AI Thin Ice Job Audit',src:'notion',date:'2026-05-14'},
+    {label:'PrimeFusion Valuation',src:'brain',date:'2026-05-20'},
+  ]},
+  { id:'cl-fab', label:'FAB / Aesthetic\nClinic Course', color:'#ff6b9d', items:[
+    {label:'FAB Hub',src:'notion',date:'2026-05-14'},
+    {label:'FAB Launch Rec',src:'notion',date:'2026-05-12'},
+    {label:'FAB Web V2',src:'notion',date:'2026-05-13'},
+    {label:'FAB Branding Kit',src:'notion',date:'2026-05-12'},
+    {label:'FAB Curriculum',src:'drive',date:'2026-05-13'},
+    {label:'FAB Script — Legal',src:'drive',date:'2026-05-04'},
+    {label:'FAB Script — Marketing',src:'drive',date:'2026-05-04'},
+    {label:'FAB Script — Sales',src:'drive',date:'2026-05-04'},
+    {label:'FAB Script — Finance',src:'drive',date:'2026-05-04'},
+    {label:'FAB Script — Strategy',src:'drive',date:'2026-05-04'},
+    {label:'FAB Script — Ops',src:'drive',date:'2026-05-04'},
+    {label:'FAB Waitlist Pages',src:'drive',date:'2026-05-02'},
+  ]},
+  { id:'cl-jana', label:'JANA / AI\nAcceleration', color:'#00d4ff', items:[
+    {label:'AI Acceleration Strategy',src:'notion',date:'2026-05-18'},
+    {label:'Phase 1 — Dev Velocity',src:'notion',date:'2026-05-18'},
+    {label:'Phase 2 — Customer Systems',src:'notion',date:'2026-05-18'},
+    {label:'Governance & Measurement',src:'notion',date:'2026-05-18'},
+    {label:'DORA AI ROI',src:'notion',date:'2026-05-15'},
+    {label:'AI Code Maintainability',src:'notion',date:'2026-05-18'},
+    {label:'Product Pyramid Strategy',src:'brain',date:'2026-05-14'},
+  ]},
+  { id:'cl-ops', label:'Daily Ops\n& Automation', color:'#f4a623', items:[
+    {label:'⚙️ Operations Hub',src:'notion',date:'2026-05-15'},
+    {label:'Cowork Email Ops',src:'notion',date:'2026-05-18'},
+    {label:'Cowork Email Setup',src:'brain',date:'2026-05-18'},
+    {label:'📥 Inbox',src:'notion',date:'2026-05-15'},
+    {label:'📰 Digest',src:'notion',date:'2026-05-18'},
+    {label:'📅 Coming Days',src:'notion',date:'2026-05-14'},
+    {label:'Second Mac Setup',src:'notion',date:'2026-05-11'},
+  ]},
+  { id:'cl-marsh', label:'Marsh Street\nCommunity Centre', color:'#98fb98', items:[
+    {label:'Marsh FY26 Year End',src:'drive',date:'2026-05-11'},
+    {label:'Marsh Deferred Revenue',src:'drive',date:'2026-04-23'},
+    {label:'Marsh FY25 Notes',src:'drive',date:'2026-04-23'},
+    {label:'Marsh Street Board Role',src:'brain',date:'2026-05-11'},
+  ]},
+  { id:'cl-personal', label:'Personal\nMemory', color:'#d4a8ff', items:[
+    {label:'Maddie — Vancouver',src:'brain',date:'2026-05-11'},
+    {label:'RESP Withdrawals',src:'brain',date:'2026-05-06'},
+    {label:'Raptors Playoff Run',src:'brain',date:'2026-05-15'},
+    {label:'Blue Jays Season 2016',src:'brain',date:'2026-05-15'},
+    {label:'FA Cup Final 2016',src:'brain',date:'2026-05-21'},
+    {label:'LVG → Mourinho',src:'brain',date:'2026-05-21'},
+  ]},
+];
+
+// TIMELINE items — all sources merged and sorted
+const TL_ITEMS = [
+  // 2026 May
+  {date:'2026-05-21',title:'FA Cup Final — United beat Palace, LVG era ends',src:'brain',desc:'LVG\'s last game. Mourinho confirmed. Rooney, Carrick, De Gea starring.'},
+  {date:'2026-05-20',title:'PrimeFusion Valuation — on hold until June',src:'brain',desc:'Year-end with Bill first. RLB engagement deferred.'},
+  {date:'2026-05-18',title:'AI Acceleration Strategy published (JANA)',src:'notion',url:'https://www.notion.so/36411273cc718102a723d0f9e98b2d6a?pvs=1',desc:'Phase 1: dev velocity. Phase 2: customer delivery. Governance metrics.'},
+  {date:'2026-05-18',title:'Cowork Email Ops — context package complete',src:'notion',url:'https://www.notion.so/36411273cc7181f8b123ec2dddb89c59?pvs=1',desc:'Gmail connector, iCloud working folder, approval gates, starter prompt.'},
+  {date:'2026-05-18',title:'Cowork Email Ops Brain memory captured',src:'brain',desc:'Decision: use Gmail connector not desktop. iCloud sync confirmed.'},
+  {date:'2026-05-18',title:'Commercial Plan — daily log 26-05-17 added',src:'notion',url:'https://www.notion.so/36411273cc71811487a4ea494407831f?pvs=1',desc:'Operator notes, LinkedIn essays, business scoring vs life goals.'},
+  {date:'2026-05-18',title:'AI Code Maintainability — slop nightmare? (#JANA)',src:'notion',url:'https://www.notion.so/36411273cc7181afb365ea38225937fe?pvs=1',desc:'Does AI-generated code create maintainability risk? Jones digest.'},
+  {date:'2026-05-18',title:'GJB workspace identity corrected in Brain',src:'brain',desc:'Graham Binks not Jones. Jones = YouTuber reference material only.'},
+  {date:'2026-05-15',title:'JGB Brain Foundation complete',src:'brain',desc:'48,781 thoughts, Supabase Pro, daily cron, 2010–2026 coverage.'},
+  {date:'2026-05-15',title:'⚙️ Operations + Inbox + Digest pages updated',src:'notion',url:'https://www.notion.so/36111273cc71813c8c69f15866874f40?pvs=1',desc:'Cowork orientation, Off Limits rules, email ops anchored here.'},
+  {date:'2026-05-15',title:'DORA AI ROI page created (#JANA)',src:'notion',url:'https://www.notion.so/35a11273cc718160a438cac4f27c3bb5?pvs=1',desc:'Applying DORA metrics to AI ROI measurement at JANA.'},
+  {date:'2026-05-15',title:'Commercial Insights Deep Pass',src:'notion',url:'https://www.notion.so/36111273cc718111bb5df4a51c15c6d0?pvs=1',desc:'JGB Brain mined for core value patterns, PrimeFusion history.'},
+  {date:'2026-05-14',title:'Cognitive Infra Sprint 4 — Semi-Automation plan',src:'notion',url:'https://www.notion.so/35f11273cc718179adeacb1bd5619cb4?pvs=1',desc:'Sprint structure defined. ADR database and automation targets.'},
+  {date:'2026-05-14',title:'Product Pyramid Strategy — Brain capture',src:'brain',desc:'3-year product state, JTBD by product, dev milestones for FY27-28.'},
+  {date:'2026-05-14',title:'My AI Angle v1 — personal positioning doc',src:'notion',url:'https://www.notion.so/35d11273cc718079a2c6c800bd7d30b3?pvs=1',desc:'Orchestration, synthesis, compression, decision support — your edge.'},
+  {date:'2026-05-14',title:'Brand Idea — "automation maximalism"',src:'notion',url:'https://www.notion.so/35f11273cc71816a9b03e8f0e2225457?pvs=1',desc:'Personal brand concept around AI-powered productivity.'},
+  {date:'2026-05-14',title:'Competitive Landscape — 5 business candidates',src:'notion',url:'https://www.notion.so/36411273cc71810597f7c5c8435f8d2a?pvs=1',desc:'Alyna, Alfred, Sliq, Chore reviewed. OpenAI acquired Nerve Feb 2026.'},
+  {date:'2026-05-13',title:'Cognitive Infrastructure — master page',src:'notion',url:'https://www.notion.so/35f11273cc7181208dbffbace505b2e5?pvs=1',desc:'Human-readable OS for AI tools, projects, decisions. Home for conventions.'},
+  {date:'2026-05-13',title:'FAB Web V2 — landing page redesign',src:'notion',url:'https://www.notion.so/35e11273cc71818d92bbc3d1f9b9f1b2?pvs=1',desc:'FBA client-facing brand, FAB workspace naming preserved.'},
+  {date:'2026-05-13',title:'FAB Curriculum Script uploaded to Drive',src:'drive',url:'https://drive.google.com/file/d/1DhfSDExtL20cpwkTHbcHou6vFKyWfSxF/view',desc:'6-module outline: Legal, Strategy, Finance, Marketing, Sales, Ops.'},
+  {date:'2026-05-13',title:'Decision Memory Design brainstorm',src:'notion',url:'https://www.notion.so/35f11273cc7181308a76f96700525dfe?pvs=1',desc:'Cross-project automation philosophy, cognitive continuity architecture.'},
+  {date:'2026-05-12',title:'FAB Launch Recommendation written',src:'notion',url:'https://www.notion.so/35e11273cc71811f8ecccb43d45437fb?pvs=1',desc:'Injector-only education angle. Kajabi launch. Notion workspace included.'},
+  {date:'2026-05-11',title:'Marsh FY26 Year End tracker last updated',src:'drive',url:'https://docs.google.com/spreadsheets/d/1VbomiuxMPcWeKrA_d2pukiOw_lyfIEoce0m0byPQgpM/edit',desc:'BT tracker, board roster, deferred concert revenue, capital assets.'},
+  {date:'2026-05-11',title:'Maddie — Vancouver internship (Brain)',src:'brain',desc:'Homeopathy clinic. 10hrs at home between exam and flying west.'},
+  {date:'2026-05-11',title:'Second Brain Architecture page updated',src:'notion',url:'https://www.notion.so/35a11273cc71818ca882e5de66007b03?pvs=1',desc:'PKM system design, Jones automation reference material.'},
+  {date:'2026-05-10',title:'Agent Scaffolding Mental Model',src:'notion',url:'https://www.notion.so/35c11273cc7181c5810cc07f754799c7?pvs=1',desc:'Prompts → skills → plugins → MCPs. Platform: Codex, Claude Projects, Zapier.'},
+  {date:'2026-05-06',title:'RESP Withdrawals — Brain memory',src:'brain',desc:'Maddie 4th/final in Sept. Hayley 2nd. Tax treatment query to RBC Bryan.'},
+  {date:'2026-05-04',title:'FAB Course Scripts uploaded to Drive (6 modules)',src:'drive',url:'https://drive.google.com/drive/folders/1GQC6zyp98PAv_zcu0kOuB2Anio5-9zs4',desc:'Legal, Strategy, Finance, Marketing, Sales, Ops — full video scripts.'},
+  {date:'2026-05-02',title:'FAB Waitlist landing pages (Drive)',src:'drive',url:'https://drive.google.com/drive/folders/1MkGrVU4iHqHSnJFhJokUivys-Z-kswmG',desc:'HTML iterations index0–index3 for clinic training course waitlist.'},
+  {date:'2026-04-23',title:'Marsh Street financial documents uploaded',src:'drive',url:'https://docs.google.com/spreadsheets/d/1-f92RcVxF_wZ8y_nMH5BF5JK1qqfcn9X6ShHSulZk7g/edit',desc:'Deferred concert revenue + FY25 financial notes for Baker Till.'},
+  // 2016
+  {date:'2016-05-21',title:'FA Cup Final — United beat Palace, LVG era ends',src:'brain',desc:'LVG\'s last game. Mourinho confirmed. Historic day for United.'},
+  {date:'2016-05-20',title:'Amalfi Coast article shared with Paul Wright',src:'brain',desc:'Positano best spot. Bomerano hike recommended.'},
+  {date:'2016-05-16',title:'Jays–Rangers brawl — Odor punches Bautista',src:'brain',desc:'Pillar and Donaldson on scene in 2 seconds. Odor studs up at second base.'},
+  {date:'2016-05-11',title:'Maddie set up in Vancouver for summer',src:'brain',desc:'Internship in homeopathy clinic. Dana flew out to help with digs.'},
+  {date:'2016-05-04',title:'PrimeFusion — Wayne Root check-in',src:'brain',desc:'Spring busy. Plan to revisit over weekend. rlb.ca engagement.'},
+  {date:'2016-04-30',title:'Prince death discussions with friends',src:'brain',desc:'Dying alone in elevator. Clapton legend debunked. Guardian article shared.'},
+];
+
+// ════════════════════════════════════════════════════════════
+// SHARED UTILS
+// ════════════════════════════════════════════════════════════
+const tip = document.getElementById('tip');
+function showTip(e,html){
+  tip.innerHTML=html;tip.style.opacity='1';
+  tip.style.left=(e.clientX+14)+'px';tip.style.top=(Math.max(10,e.clientY-30))+'px';
+}
+function hideTip(){tip.style.opacity='0'}
+function srcColor(s){return s==='notion'?'#00c2a8':s==='brain'?'#7c5cfc':s==='drive'?'#f4a623':'#aaa'}
+function srcLabel(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+
+let activeTab = 'tree';
+
+// ════════════════════════════════════════════════════════════
+// VIEW 1 — HIERARCHY TREE (collapsible)
+// ════════════════════════════════════════════════════════════
+function renderTree(){
+  const el = document.getElementById('tree-top');
+  const W = el.offsetWidth, H = el.offsetHeight;
+  if(!W || !H) return;
+  const svg = d3.select('#tree-svg').attr('width',W).attr('height',H);
+  svg.selectAll('*').remove();
+
+  const g = svg.append('g');
+  const zoom = d3.zoom().scaleExtent([0.2,4]).on('zoom',e=>g.attr('transform',e.transform));
+  svg.call(zoom);
+
+  const root = d3.hierarchy(TREE);
+  root.x0 = H/2; root.y0 = 0;
+
+  // collapse below depth 1 initially
+  root.descendants().forEach(d=>{if(d.depth>1 && d.children){d._children=d.children;d.children=null}});
+
+  const treeLayout = d3.tree().nodeSize([28,260]);
+
+  // Populate list panel
+  let totalCount = 0;
+  let listHtml = '';
+  TREE.children.forEach(section=>{
+    const sColor = section.color || '#888';
+    listHtml += `<div style="margin-bottom:10px">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:${sColor};font-weight:500;margin-bottom:4px;padding:2px 4px;border-left:2px solid ${sColor}">${section.name}</div>
+      <div style="padding-left:8px;display:flex;flex-direction:column;gap:1px">`;
+    (section.children||[]).forEach(item=>{
+      totalCount++;
+      const c = srcColor(item.type);
+      const openAttr = item.url ? `onclick="window.open('${item.url}','_blank')" title="${item.desc||''}"` : `title="${item.desc||''}"`;
+      listHtml += `<div class="tp-item" ${openAttr}>
+        <div class="tp-item-dot" style="background:${c}"></div>
+        <span>${item.name.replace(/[⚙️📅📰📥🔍🧠]/g,'').trim()}</span>
+      </div>`;
+    });
+    listHtml += `</div></div>`;
+  });
+  document.getElementById('tree-list').innerHTML = listHtml;
+  document.getElementById('tree-count').textContent = totalCount;
+
+  let i = 0;
+  function update(source){
+    treeLayout(root);
+
+    const nodes = root.descendants();
+    const links = root.links();
+    nodes.forEach(d=>{ d.y = d.depth * 220; });
+
+    // Links
+    const link = g.selectAll('.tree-link').data(links, d=>d.target.id);
+    link.join(
+      enter => enter.append('path').attr('class','tree-link')
+        .attr('d',d=>`M${source.y0},${source.x0}C${(source.y0+d.target.y)/2},${source.x0} ${(source.y0+d.target.y)/2},${source.x0} ${source.y0},${source.x0}`)
+        .transition().duration(350)
+        .attr('d', d=>`M${d.source.y},${d.source.x}C${(d.source.y+d.target.y)/2},${d.source.x} ${(d.source.y+d.target.y)/2},${d.target.x} ${d.target.y},${d.target.x}`),
+      update => update.transition().duration(350)
+        .attr('d', d=>`M${d.source.y},${d.source.x}C${(d.source.y+d.target.y)/2},${d.source.x} ${(d.source.y+d.target.y)/2},${d.target.x} ${d.target.y},${d.target.x}`),
+      exit => exit.transition().duration(350)
+        .attr('d',d=>`M${source.y},${source.x}C${(source.y+source.y)/2},${source.x} ${(source.y+source.y)/2},${source.x} ${source.y},${source.x}`)
+        .remove()
+    );
+
+    // Nodes
+    const node = g.selectAll('.tree-node').data(nodes, d=>d.id||(d.id=++i));
+    const nodeEnter = node.enter().append('g').attr('class','tree-node')
+      .attr('transform',`translate(${source.y0},${source.x0})`)
+      .on('click',(e,d)=>{
+        if(d.children){d._children=d.children;d.children=null}
+        else if(d._children){d.children=d._children;d._children=null}
+        source.x0=d.x;source.y0=d.y;
+        update(d);
+      })
+      .on('mouseover',(e,d)=>{
+        const info = d.data;
+        showTip(e,`<strong>${info.name}</strong>${info.desc?'<br><span style="color:var(--muted);font-size:9px">'+info.desc+'</span>':''}${info.date?'<br><span style="color:var(--dim);font-size:9px">'+info.date+'</span>':''}`);
+      })
+      .on('mouseout',hideTip);
+
+    // If has URL, make clickable
+    nodeEnter.filter(d=>d.data.url).on('click.open',null)
+      .on('dblclick',(e,d)=>{if(d.data.url)window.open(d.data.url,'_blank')});
+
+    nodeEnter.append('circle')
+      .attr('r',0)
+      .attr('fill',d=>{
+        if(d.data.type==='root') return '#ffc83c';
+        if(d.data.type==='section') return d.data.color||'#444';
+        return srcColor(d.data.type);
+      })
+      .attr('stroke',d=>d.data.type==='section'?(d.data.color||'#444')+'88':'transparent')
+      .attr('stroke-width',2);
+
+    nodeEnter.append('text')
+      .attr('dy','0.31em')
+      .attr('x',d=>d.children||d._children?-10:10)
+      .attr('text-anchor',d=>d.children||d._children?'end':'start')
+      .attr('fill',d=>d.data.type==='section'?(d.data.color||'#555'):d.data.type==='root'?'#1e1c1a':'#3a3530')
+      .attr('font-size',d=>d.data.type==='root'?'11px':d.data.type==='section'?'10px':'9px')
+      .attr('font-weight',d=>d.data.type==='section'?'500':'300')
+      .text(d=>d.data.name.length>32?d.data.name.substring(0,30)+'…':d.data.name);
+
+    // Add collapse indicator
+    nodeEnter.filter(d=>d._children||d.children).append('text')
+      .attr('class','collapse-icon')
+      .attr('dy','0.31em').attr('x',-2).attr('text-anchor','middle')
+      .attr('fill','rgba(0,0,0,.25)').attr('font-size','7px')
+      .text(d=>d._children?'▶':'▼');
+
+    const nodeUpdate = nodeEnter.merge(node);
+    nodeUpdate.transition().duration(350).attr('transform',d=>`translate(${d.y},${d.x})`);
+    nodeUpdate.select('circle').transition().duration(350)
+      .attr('r',d=>d.data.type==='root'?10:d.data.type==='section'?7:4);
+    nodeUpdate.select('.collapse-icon').text(d=>d._children?'▶':'▼');
+
+    node.exit().transition().duration(350).attr('transform',`translate(${source.y},${source.x})`).remove();
+
+    nodes.forEach(d=>{d.x0=d.x;d.y0=d.y});
+  }
+
+  update(root);
+
+  // Count
+  let total = 0;
+  TREE.children.forEach(s=>total+=(s.children||[]).length);
+  document.getElementById('b-tree').textContent = total;
+  setStatus(`Hierarchy — ${TREE.children.length} sections, ${total} pages/docs. Click to expand · Dbl-click to open · Drag divider to resize panel.`);
+}
+
+// ════════════════════════════════════════════════════════════
+// VIEW 2 — SEMANTIC CLUSTER (bubble pack)
+// ════════════════════════════════════════════════════════════
+function renderCluster(){
+  const el = document.getElementById('cluster-top');
+  const W = el.offsetWidth, H = el.offsetHeight;
+  if(!W || !H) return;
+  const svg = d3.select('#cluster-svg').attr('width',W).attr('height',H);
+  svg.selectAll('*').remove();
+
+  const zoom = d3.zoom().scaleExtent([0.3,4]).on('zoom',e=>g.attr('transform',e.transform));
+  svg.call(zoom);
+  const g = svg.append('g');
+
+  // Glow filter
+  const defs = svg.append('defs');
+  const f = defs.append('filter').attr('id','cg').attr('x','-50%').attr('y','-50%').attr('width','200%').attr('height','200%');
+  f.append('feGaussianBlur').attr('stdDeviation','8').attr('result','blur');
+  const fm = f.append('feMerge');
+  fm.append('feMergeNode').attr('in','blur');
+  fm.append('feMergeNode').attr('in','SourceGraphic');
+
+  // Populate cluster list panel
+  let clListHtml = '';
+  CLUSTERS.forEach(cl=>{
+    clListHtml += `<div class="cp-cluster-row">
+      <div class="cp-cluster-name" style="color:${cl.color}">${cl.label.replace('\n',' ')}</div>
+      <div class="cp-items" style="border-color:${cl.color}44">`;
+    cl.items.forEach(item=>{
+      const openAttr = item.url ? `onclick="window.open('${item.url}','_blank')"` : '';
+      clListHtml += `<div class="cp-item" ${openAttr}>
+        <div class="cp-item-dot" style="background:${srcColor(item.src)}"></div>
+        ${item.label}
+      </div>`;
+    });
+    clListHtml += `</div></div>`;
+  });
+  document.getElementById('cluster-list').innerHTML = clListHtml;
+  document.getElementById('b-cluster').textContent = CLUSTERS.reduce((a,c)=>a+c.items.length,0);
+
+  const N = CLUSTERS.length;
+  const cols = Math.ceil(Math.sqrt(N));
+  const rows = Math.ceil(N/cols);
+  const cw = W/cols, ch = H/rows;
+
+  CLUSTERS.forEach((cl,ci)=>{
+    const col = ci%cols, row = Math.floor(ci/cols);
+    const cx = col*cw + cw/2, cy = row*ch + ch/2;
+    const r = Math.min(cw,ch)*0.38;
+
+    // Cluster background circle
+    g.append('circle')
+      .attr('cx',cx).attr('cy',cy)
+      .attr('r',r+18)
+      .attr('fill',cl.color+'08')
+      .attr('stroke',cl.color+'22')
+      .attr('stroke-width',1);
+
+    // Cluster label
+    const labelLines = cl.label.split('\n');
+    const lb = g.append('text')
+      .attr('x',cx).attr('y',cy - r - 8)
+      .attr('text-anchor','middle')
+      .attr('font-family','Syne,sans-serif')
+      .attr('font-size','11px')
+      .attr('font-weight','700')
+      .attr('fill',cl.color)
+      .attr('filter','url(#cg)');
+    labelLines.forEach((line,li)=>{
+      lb.append('tspan').attr('x',cx).attr('dy',li===0?0:13).text(line);
+    });
+
+    // Count badge
+    g.append('text')
+      .attr('x',cx).attr('y',cy-r+2)
+      .attr('text-anchor','middle')
+      .attr('font-size','8px').attr('fill',cl.color+'88')
+      .text(`${cl.items.length} items`);
+
+    // Item bubbles arranged in a circle
+    const items = cl.items;
+    const angleStep = (2*Math.PI)/items.length;
+    const ir = r * 0.62;
+
+    items.forEach((item,ii)=>{
+      const angle = angleStep*ii - Math.PI/2;
+      const ix = cx + ir*Math.cos(angle);
+      const iy = cy + ir*Math.sin(angle);
+      const br = 14;
+
+      const itemG = g.append('g').attr('cursor','pointer')
+        .on('mouseover',e=>{
+          showTip(e,`<strong>${item.label}</strong><br><span style="color:${srcColor(item.src)};font-size:9px">${srcLabel(item.src)}</span><span style="color:var(--dim);font-size:9px"> · ${item.date}</span>`);
+        })
+        .on('mouseout',hideTip);
+
+      itemG.append('circle')
+        .attr('cx',ix).attr('cy',iy).attr('r',br)
+        .attr('fill',srcColor(item.src)+'22')
+        .attr('stroke',srcColor(item.src)+'66')
+        .attr('stroke-width',1);
+
+      // Source dot
+      itemG.append('circle')
+        .attr('cx',ix+br-4).attr('cy',iy-br+4).attr('r',3)
+        .attr('fill',srcColor(item.src));
+
+      // Label (abbreviated)
+      const words = item.label.replace(/[⚙️📅📰📥🔍🧠]/g,'').trim().split(' ');
+      const abbrev = words.length>2 ? words.slice(0,2).join(' ')+'…' : item.label.substring(0,12);
+      itemG.append('text')
+        .attr('x',ix).attr('y',iy+1)
+        .attr('text-anchor','middle').attr('dominant-baseline','middle')
+        .attr('font-size','6px').attr('fill','#3a3530')
+        .text(abbrev.length>12?abbrev.substring(0,11)+'…':abbrev);
+    });
+  });
+
+  const totalItems = CLUSTERS.reduce((a,c)=>a+c.items.length,0);
+  setStatus(`Semantic Clusters — ${CLUSTERS.length} clusters, ${totalItems} items grouped by meaning. Hover for detail. List panel is resizable.`);
+}
+
+// ════════════════════════════════════════════════════════════
+// VIEW 3 — TIMELINE
+// ════════════════════════════════════════════════════════════
+let tlActiveFilter = 'all';
+
+function tlFilter(f){
+  tlActiveFilter = f;
+  document.querySelectorAll('.tl-filter').forEach(b=>b.classList.remove('on'));
+  document.getElementById('tf-'+f).classList.add('on');
+  renderTimeline();
+}
+
+function renderTimeline(){
+  const items = TL_ITEMS.filter(i=>tlActiveFilter==='all'||i.src===tlActiveFilter);
+
+  // Group by year
+  const byYear = {};
+  items.forEach(item=>{
+    const yr = item.date.substring(0,4);
+    if(!byYear[yr]) byYear[yr]=[];
+    byYear[yr].push(item);
+  });
+
+  const years = Object.keys(byYear).sort((a,b)=>b-a);
+  document.getElementById('b-timeline').textContent = items.length;
+
+  let html = '';
+  years.forEach(yr=>{
+    const evs = byYear[yr];
+    html += `<div class="yr-block"><div class="yr-label">${yr}</div><div class="yr-line">`;
+    evs.forEach(ev=>{
+      const mo = ev.date.substring(5,10);
+      const openAttr = ev.url ? `onclick="window.open('${ev.url}','_blank')" style="cursor:pointer"` : '';
+      html += `<div class="ev" ${openAttr}>
+        <div class="ev-dot" style="background:${srcColor(ev.src)}"></div>
+        <div class="ev-date">${mo}</div>
+        <div class="ev-title">${ev.title}<span class="ev-src ${ev.src}">${srcLabel(ev.src)}</span></div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  document.getElementById('tl-scroll').innerHTML = html;
+  setStatus(`Timeline — ${items.length} events${tlActiveFilter!=='all'?' ('+tlActiveFilter+' only)':''} · Click rows with URLs to open source`);
+}
+
+function setStatus(msg){document.getElementById('status').textContent=msg}
+
+// ════════════════════════════════════════════════════════════
+// VIEW 4 — KNOWLEDGE GRAPH
+// ════════════════════════════════════════════════════════════
+
+const G_THEMES = [
+  {id:'th-automation',label:'Automation & AI',size:22},
+  {id:'th-business',  label:'Business Strategy',size:21},
+  {id:'th-cognitive', label:'Cognitive Infra',size:20},
+  {id:'th-notion',    label:'Notion / Brain',size:20},
+  {id:'th-fab',       label:'FAB / Aesthetic',size:18},
+  {id:'th-cowork',    label:'Cowork / Ops',size:18},
+  {id:'th-tech',      label:'Tech & Dev',size:17},
+  {id:'th-jana',      label:'JANA / Acceleration',size:18},
+  {id:'th-sports',    label:'Sports & Teams',size:17},
+  {id:'th-football',  label:'Football / EPL',size:17},
+  {id:'th-music',     label:'Music & Culture',size:15},
+  {id:'th-content',   label:'Content & Brand',size:16},
+  {id:'th-product',   label:'Product Design',size:16},
+  {id:'th-finance',   label:'Finance & RESP',size:16},
+  {id:'th-marsh',     label:'Marsh Street CC',size:16},
+  {id:'th-family',    label:'Family & Personal',size:14},
+  {id:'th-travel',    label:'Travel & Places',size:13},
+  {id:'th-primefusion',label:'PrimeFusion',size:13},
+  {id:'th-baseball',  label:'Baseball / Jays',size:15},
+  {id:'th-social',    label:'Social & Friends',size:13},
+];
+
+const G_LEAVES = [
+  // Brain
+  {id:'b-cowork',    label:'Cowork Email Ops',   type:'brain', themes:['th-cowork','th-automation','th-notion'],  date:'2026-05-18', desc:'Gmail connector, iCloud context files, approval gates, scheduled triage.'},
+  {id:'b-openbrain', label:'JGB Brain Foundation',type:'brain', themes:['th-notion','th-tech','th-automation'],   date:'2026-05-15', desc:'48,781 thoughts in Supabase 2010–2026. Daily cron running.'},
+  {id:'b-pyramid',   label:'Product Pyramid',     type:'brain', themes:['th-product','th-business','th-jana'],    date:'2026-05-14', desc:'3-year product strategy, JTBD by product, dev milestones, CIM alignment.'},
+  {id:'b-raptors',   label:'Raptors Playoff Run', type:'brain', themes:['th-sports','th-social'],                 date:'2026-05-15', desc:'Raptors learning playoffs. Lowry & Valanciunas stepping up.'},
+  {id:'b-jays',      label:'Blue Jays Season',    type:'brain', themes:['th-baseball','th-sports'],               date:'2026-05-15', desc:'Happ 3rd-best ERA, Bautista-Odor brawl, Edwin RBI nights.'},
+  {id:'b-prince',    label:'Prince Death',         type:'brain', themes:['th-music','th-social'],                  date:'2026-05-15', desc:'Prince dying alone in elevator. Clapton legend debunked.'},
+  {id:'b-lvg',       label:'LVG → Mourinho',       type:'brain', themes:['th-football','th-social'],              date:'2026-05-21', desc:'Van Gaal out, Mourinho era begins. Best two managers in Manchester.'},
+  {id:'b-facup',     label:'FA Cup Final 2016',    type:'brain', themes:['th-football'],                           date:'2026-05-21', desc:'United beat Palace. LVG\'s last game. Rooney, Carrick, De Gea stellar.'},
+  {id:'b-resp',      label:'RESP Withdrawals',     type:'brain', themes:['th-finance','th-family'],                date:'2026-05-06', desc:'Maddie\'s 4th/final RESP withdrawal in Sept, Hayley\'s 2nd.'},
+  {id:'b-maddie',    label:'Maddie / Vancouver',   type:'brain', themes:['th-family','th-travel'],                 date:'2026-05-11', desc:'First solo adventure: homeopathy clinic internship, Vancouver.'},
+  {id:'b-primefusion',label:'PrimeFusion Valuation',type:'brain',themes:['th-primefusion','th-finance','th-business'],date:'2026-05-20',desc:'Valuation on hold. Year-end with Bill in June.'},
+  // Notion
+  {id:'n-coginfra',   label:'Cognitive Infrastructure',type:'notion',themes:['th-cognitive','th-automation','th-notion'], url:'https://www.notion.so/35f11273cc7181208dbffbace505b2e5?pvs=1',date:'2026-05-13',desc:'Human-readable OS for AI tools, projects, decisions.'},
+  {id:'n-cowork',     label:'Cowork Email Ops',    type:'notion',themes:['th-cowork','th-automation'],            url:'https://www.notion.so/36411273cc7181f8b123ec2dddb89c59?pvs=1',date:'2026-05-18',desc:'Setup & context package for Cowork email automation.'},
+  {id:'n-agentscaff', label:'Agent Scaffolding',   type:'notion',themes:['th-automation','th-tech'],             url:'https://www.notion.so/35c11273cc7181c5810cc07f754799c7?pvs=1',date:'2026-05-10',desc:'Prompts, skills, plugins, MCPs — agent design mental model.'},
+  {id:'n-secondbrain',label:'Second Brain Arch',   type:'notion',themes:['th-notion','th-cognitive'],            url:'https://www.notion.so/35a11273cc71818ca882e5de66007b03?pvs=1',date:'2026-05-11',desc:'PKM system design, automation, Jones reference material.'},
+  {id:'n-aiangle',    label:'My AI Angle v1',      type:'notion',themes:['th-content','th-business','th-automation'],url:'https://www.notion.so/35d11273cc718079a2c6c800bd7d30b3?pvs=1',date:'2026-05-14',desc:'Personal AI strategy: orchestration, synthesis, decision support.'},
+  {id:'n-aistrat',    label:'AI Acceleration Strategy',type:'notion',themes:['th-automation','th-tech','th-jana'],url:'https://www.notion.so/36411273cc718102a723d0f9e98b2d6a?pvs=1',date:'2026-05-18',desc:'Phase 1: dev velocity. Phase 2: customer delivery.'},
+  {id:'n-jana-p1',    label:'Phase 1 Dev Velocity',type:'notion',themes:['th-jana','th-tech'],                   url:'https://www.notion.so/36411273cc71817cbebfe6e5def753ab?pvs=1',date:'2026-05-18',desc:'Software development velocity metrics dashboard.'},
+  {id:'n-jana-gov',   label:'Governance & Measurement',type:'notion',themes:['th-jana','th-business'],           url:'https://www.notion.so/36411273cc718106b59aef521e07144e?pvs=1',date:'2026-05-18',desc:'Master metrics dashboard for AI acceleration.'},
+  {id:'n-fab',        label:'FAB Project Hub',     type:'notion',themes:['th-fab','th-business','th-content'],   url:'https://www.notion.so/35e11273cc71808fab9becbb5adfc7b4?pvs=1',date:'2026-05-14',desc:'FAB aesthetic clinic course — launch rec, lead gen, landing page.'},
+  {id:'n-commercialplan',label:'Commercial Plan',  type:'notion',themes:['th-business','th-content'],            url:'https://www.notion.so/35d11273cc71801c8463eb7f8c5ba4ee?pvs=1',date:'2026-05-18',desc:'Business candidates, operator notes, LinkedIn essays.'},
+  {id:'n-competitive',label:'Competitive Landscape',type:'notion',themes:['th-business','th-content'],           url:'https://www.notion.so/36411273cc71810597f7c5c8435f8d2a?pvs=1',date:'2026-05-18',desc:'5 business candidates — Alyna, Alfred, Sliq, Chore, OpenAI/Nerve.'},
+  {id:'n-sprint',     label:'Cognitive Infra Sprint',type:'notion',themes:['th-cognitive','th-automation'],      url:'https://www.notion.so/35f11273cc718179adeacb1bd5619cb4?pvs=1',date:'2026-05-14',desc:'Sprint 4: Semi-Automation plan.'},
+  {id:'n-devbacklog', label:'Dev Backlog',          type:'notion',themes:['th-tech','th-notion'],                url:'https://www.notion.so/35d11273cc7181ac92a8ef0dbf7b7a23?pvs=1',date:'2026-05-15',desc:'Brain dashboard, marker shell alias, git identity, iCloud symlinks.'},
+  {id:'n-ops',        label:'⚙️ Operations',       type:'notion',themes:['th-cowork','th-cognitive'],            url:'https://www.notion.so/36111273cc71813c8c69f15866874f40?pvs=1',date:'2026-05-15',desc:'Cowork orientation, Off Limits rules, email ops.'},
+  {id:'n-thinice',    label:'AI Thin Ice — Job Audit',type:'notion',themes:['th-cognitive','th-business'],       url:'https://www.notion.so/35911273cc7181d2abe3e293d8c9d34b?pvs=1',date:'2026-05-14',desc:'TCLD job audit — protect D work, strategy judgment calls.'},
+  {id:'n-brandidea',  label:'Brand Idea',           type:'notion',themes:['th-content','th-business'],           url:'https://www.notion.so/35f11273cc71816a9b03e8f0e2225457?pvs=1',date:'2026-05-14',desc:'"Automation maximalism" brand concept.'},
+  // Drive
+  {id:'d-marsh-fy26', label:'Marsh FY26 Year End', type:'drive', themes:['th-marsh','th-finance'],               url:'https://docs.google.com/spreadsheets/d/1VbomiuxMPcWeKrA_d2pukiOw_lyfIEoce0m0byPQgpM/edit',date:'2026-05-11',desc:'BT tracker, board members, deferred concert revenue, capital assets.'},
+  {id:'d-marsh-notes',label:'Marsh FY25 Notes',    type:'drive', themes:['th-marsh','th-finance'],               url:'https://docs.google.com/document/d/1uHAsx5iip54Yu-yaqfa0TEqsk6-X6aSu06rP3ahCtpA/edit',date:'2026-04-23',desc:'YoY variance notes: concerts, MSR, grants, hall rental.'},
+  {id:'d-fab-curr',   label:'FAB Curriculum',       type:'drive', themes:['th-fab','th-content'],                url:'https://drive.google.com/file/d/1DhfSDExtL20cpwkTHbcHou6vFKyWfSxF/view',date:'2026-05-13',desc:'6-module outline: Legal, Strategy, Finance, Marketing, Sales, Ops.'},
+  {id:'d-fab-legal',  label:'FAB Script — Legal',  type:'drive', themes:['th-fab','th-content'],                url:'https://drive.google.com/file/d/1c7mpZFEw4VNFeUDhVwjyEdHBxfBc3kzf/view',date:'2026-05-04',desc:'Module 1 — legal structures, compliance, risk.'},
+  {id:'d-fab-mkt',    label:'FAB Script — Marketing',type:'drive',themes:['th-fab','th-content'],               url:'https://drive.google.com/file/d/1KdxWAirHPM6BMpYTFfgoctB08Gvhsdpu/view',date:'2026-05-04',desc:'Patient journey, SEO, ads, email funnels.'},
+  {id:'d-fab-sales',  label:'FAB Script — Sales',  type:'drive', themes:['th-fab','th-content'],                url:'https://drive.google.com/file/d/1Rqxd25cf0EvXgQ-0XsrulPhblKS0TNaG/view',date:'2026-05-04',desc:'CRM, consultative selling, patient retention.'},
+  {id:'d-fab-finance',label:'FAB Script — Finance',type:'drive', themes:['th-fab','th-finance'],                url:'https://drive.google.com/file/d/1ehbWj_YAyTJ0J59pasdmV_3Ehh1nEy5t/view',date:'2026-05-04',desc:'P&L, KPIs, startup costs, break-even.'},
+  {id:'d-fab-strat',  label:'FAB Script — Strategy',type:'drive',themes:['th-fab','th-business'],               url:'https://drive.google.com/file/d/1vX1RWs-SDMUDVfrh_rfn0tKAykiKiEhn/view',date:'2026-05-04',desc:'UVP, positioning, competitor analysis, roadmap.'},
+  {id:'d-fab-ops',    label:'FAB Script — Ops',    type:'drive', themes:['th-fab','th-product'],                url:'https://drive.google.com/file/d/1O6_Vs30l2R-DHP72qXuTkC3usMNnE9g6/view',date:'2026-05-04',desc:'SOPs, scheduling, inventory, daily ops checklists.'},
+];
+
+const G_CROSS = [
+  ['b-cowork','n-cowork'],['b-openbrain','n-secondbrain'],['b-openbrain','n-devbacklog'],
+  ['b-pyramid','n-aistrat'],['b-pyramid','n-jana-p1'],
+  ['n-coginfra','n-sprint'],['n-coginfra','n-secondbrain'],
+  ['n-agentscaff','n-aistrat'],['n-fab','d-fab-curr'],['n-fab','d-fab-legal'],
+  ['n-fab','d-fab-mkt'],['n-fab','d-fab-sales'],['n-fab','d-fab-finance'],
+  ['n-fab','d-fab-strat'],['n-fab','d-fab-ops'],
+  ['n-aistrat','n-jana-p1'],['n-aistrat','n-jana-gov'],
+  ['n-commercialplan','n-fab'],['n-commercialplan','n-competitive'],
+  ['b-primefusion','n-commercialplan'],
+  ['d-marsh-fy26','d-marsh-notes'],
+];
+
+let gNodes=[], gLinks=[], gSim, gLinkSel, gNodeSel, gLabelSel;
+let gShowLabels=true, gActiveFilter=null, gGraphBuilt=false;
+
+function gColour(t){return t==='hub'?'#ffc83c':t==='brain'?'#7c5cfc':t==='notion'?'#00c2a8':t==='drive'?'#f4a623':'#aaa'}
+
+function gBuild(){
+  gNodes=[
+    ...G_THEMES.map(t=>({...t,type:'hub',color:'#ffc83c'})),
+    ...G_LEAVES.map(n=>({...n,color:gColour(n.type),size:n.size||10})),
+  ];
+  const seen=new Set();
+  gNodes=gNodes.filter(n=>{if(seen.has(n.id))return false;seen.add(n.id);return true});
+
+  gLinks=[];
+  G_LEAVES.forEach(n=>(n.themes||[]).forEach(th=>{
+    if(gNodes.find(x=>x.id===th)) gLinks.push({source:n.id,target:th,type:n.type});
+  }));
+  G_CROSS.forEach(([s,t])=>{
+    if(gNodes.find(x=>x.id===s)&&gNodes.find(x=>x.id===t))
+      gLinks.push({source:s,target:t,type:'cross'});
+  });
+
+  document.getElementById('b-graph').textContent=gNodes.length;
+  document.getElementById('g-stats').textContent=`${gNodes.length}N · ${gLinks.length}L`;
+}
+
+function gRender(){
+  const el = document.getElementById('graph-top');
+  const W = el.offsetWidth, H = el.offsetHeight;
+  if(!W || !H) return;
+  const svg = d3.select('#graph-svg').attr('width', W).attr('height', H);
+  svg.selectAll('*').remove();
+
+  const defs=svg.append('defs');
+  ['glow','glow2'].forEach((id,i)=>{
+    const f=defs.append('filter').attr('id',id).attr('x','-60%').attr('y','-60%').attr('width','220%').attr('height','220%');
+    f.append('feGaussianBlur').attr('stdDeviation',i===0?3:5).attr('result','b');
+    const m=f.append('feMerge');m.append('feMergeNode').attr('in','b');m.append('feMergeNode').attr('in','SourceGraphic');
+  });
+
+  const zoom=d3.zoom().scaleExtent([0.15,5]).on('zoom',e=>gc.attr('transform',e.transform));
+  svg.call(zoom);
+  svg._zoom=zoom;
+
+  const gc=svg.append('g').attr('id','gc');
+
+  gLinkSel=gc.append('g').selectAll('line').data(gLinks).join('line')
+    .attr('stroke',d=>d.type==='cross'?'#3a7bd5':gColour(d.type))
+    .attr('stroke-opacity',0.15)
+    .attr('stroke-width',d=>d.type==='cross'?1.2:0.7)
+    .attr('fill','none');
+
+  gNodeSel=gc.append('g').selectAll('g').data(gNodes).join('g')
+    .attr('cursor','pointer')
+    .call(d3.drag()
+      .on('start',(e,d)=>{if(!e.active)gSim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y})
+      .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y})
+      .on('end',(e,d)=>{if(!e.active)gSim.alphaTarget(0);if(!e.sourceEvent.shiftKey){d.fx=null;d.fy=null}}))
+    .on('click',(e,d)=>{
+      if(e.shiftKey){d.fx=d.fx?null:d.x;d.fy=d.fy?null:d.y;return}
+      gShowDetail(d);
+    })
+    .on('mouseover',(e,d)=>{
+      showTip(e,`<strong>${d.label}</strong>${d.date?'<br><span style="color:var(--dim);font-size:9px">'+d.date+' · '+d.type+'</span>':''}`);
+      const conn=new Set([d.id]);
+      gLinkSel.each(function(l){
+        if(l.source.id===d.id||l.target.id===d.id){conn.add(l.source.id);conn.add(l.target.id);d3.select(this).attr('stroke-opacity',0.7)}
+      });
+      gNodeSel.select('circle').attr('fill-opacity',n=>conn.has(n.id)?1:0.1);
+      gLabelSel.style('opacity',n=>conn.has(n.id)?1:0.08);
+    })
+    .on('mouseout',()=>{
+      hideTip();
+      gLinkSel.attr('stroke-opacity',0.15);
+      gNodeSel.select('circle').attr('fill-opacity',d=>d.type==='hub'?0.9:0.82);
+      gLabelSel.style('opacity',1);
+    });
+
+  gNodeSel.append('circle')
+    .attr('r',d=>d.size)
+    .attr('fill',d=>d.color)
+    .attr('fill-opacity',d=>d.type==='hub'?0.9:0.82)
+    .attr('stroke',d=>d.color+'88').attr('stroke-width',1.5)
+    .attr('filter',d=>d.type==='hub'?'url(#glow2)':'url(#glow)');
+
+  gLabelSel=gc.append('g').selectAll('text').data(gNodes).join('text')
+    .attr('dy',d=>d.size+10).attr('text-anchor','middle')
+    .attr('fill',d=>d.type==='hub'?'#a07010':d.type==='brain'?'#4a2ecc':d.type==='notion'?'#007a6a':'#9a6200')
+    .attr('font-size',d=>d.type==='hub'?'8.5px':'7.5px')
+    .attr('font-family','DM Mono,monospace')
+    .attr('pointer-events','none')
+    .text(d=>d.label.length>20?d.label.substring(0,18)+'…':d.label)
+    .style('display',gShowLabels?'block':'none');
+
+  if(gSim) gSim.stop();
+  gSim=d3.forceSimulation(gNodes)
+    .force('link',d3.forceLink(gLinks).id(d=>d.id).distance(d=>d.type==='cross'?130:95).strength(0.35))
+    .force('charge',d3.forceManyBody().strength(d=>d.type==='hub'?-280:-110))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collision',d3.forceCollide().radius(d=>d.size+7))
+    .on('tick',()=>{
+      gLinkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+      gNodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+      gLabelSel.attr('x',d=>d.x).attr('y',d=>d.y);
+    });
+
+  gGraphBuilt=true;
+}
+
+function gShowDetail(d){
+  const conn=[];
+  gLinks.forEach(l=>{
+    const s=l.source.id||l.source,t=l.target.id||l.target;
+    if(s===d.id){const n=gNodes.find(x=>x.id===t);if(n)conn.push(n)}
+    else if(t===d.id){const n=gNodes.find(x=>x.id===s);if(n)conn.push(n)}
+  });
+  const typeLabel={hub:'Theme Hub',brain:'JGB Brain',notion:'Notion',drive:'Google Drive'}[d.type]||d.type;
+  const urlBtn=d.url?`<a class="g-open-btn" href="${d.url}" target="_blank">↗ Open in ${d.type==='notion'?'Notion':'Drive'}</a>`:'';
+  const connHtml=conn.slice(0,8).map(n=>`<div class="g-conn-item" onclick="gShowDetailById('${n.id}')"><span class="g-conn-dot" style="background:${n.color}"></span>${n.label}</div>`).join('');
+  document.getElementById('g-body').innerHTML=`
+<span class="nd-chip ${d.type}">${typeLabel}</span>
+<div class="g-nd-title">${d.label}</div>
+${d.date?`<div class="g-nd-date">${d.date}</div>`:''}
+${d.desc?`<div class="g-nd-desc">${d.desc}</div>`:''}
+${urlBtn}
+${conn.length?`<div class="g-nd-sec">Connected (${conn.length})</div>`:''}
+${connHtml}`;
+}
+
+function gShowDetailById(id){const d=gNodes.find(n=>n.id===id);if(d)gShowDetail(d)}
+
+function gResize(){
+  const el = document.getElementById('graph-top');
+  const W = el.offsetWidth, H = el.offsetHeight;
+  if(!W || !H) return;
+  d3.select('#graph-svg').attr('width', W).attr('height', H);
+  if(gSim) gSim.force('center', d3.forceCenter(W/2, H/2)).alpha(0.2).restart();
+}
+function gReset(){
+  const svg=d3.select('#graph-svg');
+  if(svg._zoom) svg.transition().duration(500).call(svg._zoom.transform,d3.zoomIdentity);
+}
+function gToggleLabels(){gShowLabels=!gShowLabels;gLabelSel&&gLabelSel.style('display',gShowLabels?'block':'none')}
+function gReheat(){gSim&&gSim.alpha(0.8).restart()}
+function gFilterType(type){
+  gActiveFilter=type;
+  if(!type){gNodeSel&&gNodeSel.style('opacity',1);gLabelSel&&gLabelSel.style('opacity',1);return}
+  gNodeSel&&gNodeSel.style('opacity',d=>d.type===type?1:0.07);
+  gLabelSel&&gLabelSel.style('opacity',d=>d.type===type?1:0.04);
+}
+function gFilter(q){
+  if(!q){gNodeSel&&gNodeSel.style('opacity',1);gLabelSel&&gLabelSel.style('opacity',1);return}
+  const lq=q.toLowerCase();
+  gNodeSel&&gNodeSel.style('opacity',d=>(d.label.toLowerCase().includes(lq)||(d.desc||'').toLowerCase().includes(lq))?1:0.06);
+  gLabelSel&&gLabelSel.style('opacity',d=>(d.label.toLowerCase().includes(lq)||(d.desc||'').toLowerCase().includes(lq))?1:0.03);
+}
+
+// ════════════════════════════════════════════════════════════
+// TAB SWITCHER
+// ════════════════════════════════════════════════════════════
+
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('v-'+id).classList.add('active');
+  activeTab=id;
+  requestAnimationFrame(()=>{
+    if(id==='tree')      { initVSplit('tree');    renderTree(); }
+    if(id==='cluster')   { initVSplit('cluster'); renderCluster(); }
+    if(id==='timeline')  { renderTimeline(); }
+    if(id==='graph')     {
+      initVSplit('graph');
+      if(!gGraphBuilt){ gBuild(); gRender(); }
+      else gResize();
+      setStatus(`Knowledge Graph — ${gNodes.length} nodes · Drag bar to resize · Shift+click to pin`);
+    }
+    if(id==='dashboard') { renderDashboard(); }
+  });
+}
+
+window.addEventListener('resize',()=>{
+  requestAnimationFrame(()=>{
+    if(activeTab==='tree')    renderTree();
+    if(activeTab==='cluster') renderCluster();
+    if(activeTab==='graph' && gGraphBuilt) gResize();
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+// RECENTS — Chat history with status + EPIC tagging
+// ════════════════════════════════════════════════════════════
+
+// Status derived from days since last activity:
+// complete: known one-shot Q&A  active: <14 days  stalled: 14+ days
+// EPIC tags assigned by user, persisted in rcEpicMap
+
+const RC_CHATS = [
+  // ── THIS SESSION ──
+  { url:'https://claude.ai/chat/current', updated:'2026-05-18', title:'JGB Brain Visuals — knowledge maps + dashboard', folder:'', summary:'Built 6-tab visual system: Hierarchy, Clusters, Timeline, Knowledge Graph, Dashboard (EPIC + RAG + weekly log), Recents. Created EPIC — May 2026 in Notion.' },
+
+  // ── TODAY / RECENT (May 18) ──
+  { url:'https://claude.ai/chat/current2', updated:'2026-05-18', title:'Creating a visual memory map of documents', folder:'', summary:'Started this session — knowledge graph, hierarchy, clusters, timeline, dashboard, recents.' },
+  { url:'https://claude.ai/chat/ai-accel', updated:'2026-05-17', title:'AI acceleration strategy for engineering processes', folder:'Commercial', summary:'AI acceleration strategy for JANA engineering — Phase 1 dev velocity, Phase 2 customer delivery.' },
+  { url:'https://claude.ai/chat/ai-fluency', updated:'2026-05-17', title:'AI Fluency: The Missing Middle', folder:'Transcriptions', summary:'Transcript/summary on the gap between AI awareness and AI competency in the workforce.' },
+  { url:'https://claude.ai/chat/ai-code-maint', updated:'2026-05-17', title:'AI & Code Maintainability', folder:'Transcriptions', summary:'Transcript: does AI-generated code create a maintainability nightmare? DORA metrics context.' },
+  { url:'https://claude.ai/chat/jgb-core-values', updated:'2026-05-17', title:'JGB Brain core values and business model', folder:'Order', summary:'Mining Brain for commercial signals — core value patterns, PrimeFusion history, JANA arc.' },
+  { url:'https://claude.ai/chat/cowork-email-sched', updated:'2026-05-17', title:'Cowork scheduled email refreshes setup', folder:'Openbrain', summary:'Setting up scheduled email triage via Cowork — Gmail connector, approval gates, context files.' },
+
+  // ── 3 DAYS AGO (May 15) ──
+  { url:'https://claude.ai/chat/refine-brain-arch', updated:'2026-05-15', title:'Refine Brain Architecture', folder:'Summaries', summary:'Reviewing and refining JGB Brain system architecture — Supabase structure, enrichment pipeline.' },
+  { url:'https://claude.ai/chat/commercial-insights', updated:'2026-05-15', title:'Commercial insights from JGB Brain', folder:'Openbrain', summary:'Deep pass mining Brain for commercial insights — core value, business model parameters.' },
+  { url:'https://claude.ai/chat/jgb-setup-pt2', updated:'2026-05-15', title:'JGB Brain setup pt. 2', folder:'Openbrain', summary:'Continued Brain setup — enrichment pipeline, gmail import, Supabase configuration.' },
+
+  // ── 4 DAYS AGO (May 14) ──
+  { url:'https://claude.ai/chat/jgb-setup', updated:'2026-05-14', title:'JGB Brain Setup', folder:'Openbrain', summary:'Initial JGB Brain setup — Supabase, MCP, daily cron, import pipeline.' },
+  { url:'https://claude.ai/chat/fba-landing', updated:'2026-05-14', title:'FBA landing page review and improvements', folder:'Maddie Business', summary:'Reviewed and improved FAB/Maddie landing page — index0–index3 iterations, waitlist setup.' },
+
+  // ── 5 DAYS AGO (May 13) ──
+  { url:'https://claude.ai/chat/8f01a8fd-9768-4e98-9ec2-ea944cdd734a', updated:'2026-05-13', title:'Token reset status', folder:'', summary:'Quick Q&A on Claude token reset windows, rolling 5-hour resets, and how to check at settings/usage.' },
+  { url:'https://claude.ai/chat/jgb-enrichment-overview', updated:'2026-05-13', title:'JGB Brain enrichment overview', folder:'Openbrain', summary:'Overview of Brain enrichment strategy — tagging, schema, annotation workflow.' },
+  { url:'https://claude.ai/chat/weekly-priorities-notion', updated:'2026-05-13', title:'Weekly priorities from Notion backlog', folder:'Kai Zan', summary:'Extracting and structuring weekly priorities from Notion — backlog triage.' },
+  { url:'https://claude.ai/chat/personal-obs-openbrain', updated:'2026-05-13', title:'Personal observations from open brain data', folder:'Openbrain', summary:'Mining personal observations and patterns from Brain data — identity signals, themes.' },
+  { url:'https://claude.ai/chat/prioritize-assets', updated:'2026-05-13', title:'Prioritizing recent assets and outcomes', folder:'Summaries', summary:'Triage of recent Notion pages, Drive files, and Brain captures — prioritization pass.' },
+  { url:'https://claude.ai/chat/token-efficiency', updated:'2026-05-13', title:'Optimizing token efficiency in my workflow', folder:'How to use Claude', summary:'Strategies to reduce token burn — prompt compression, context reuse, skill files.' },
+  { url:'https://claude.ai/chat/jgb-setup-1d', updated:'2026-05-13', title:'JGB Brain Setup 1D', folder:'Openbrain', summary:'One-day Brain setup sprint — pipeline, enrichment, first queries.' },
+
+  // ── 6 DAYS AGO (May 12) ──
+  { url:'https://claude.ai/chat/wix-connector', updated:'2026-05-12', title:'Wix connector setup', folder:'How to use Claude to design/ build', summary:'Setting up Wix MCP connector for site editing via Claude.' },
+  { url:'https://claude.ai/chat/openbrain-qa', updated:'2026-05-12', title:'Openbrain Q&A', folder:'Openbrain', summary:'Q&A session testing Brain retrieval quality and coverage.' },
+
+  // ── LAST WEEK (May 10–11) ──
+  { url:'https://claude.ai/chat/review-folder-notion', updated:'2026-05-11', title:'Finding review folder in Notion', folder:'Transcriptions', summary:'Locating and orienting the Review folder in Notion workspace structure.' },
+  { url:'https://claude.ai/chat/gmail-openbrain', updated:'2026-05-11', title:'Gmail to OpenBrain integration setup', folder:'Openbrain', summary:'Gmail-to-Brain import pipeline — connector, filtering, enrichment, sprint structure.' },
+  { url:'https://claude.ai/chat/nate-substack', updated:'2026-05-11', title:'Combining Nate\'s Substack and YouTube content', folder:'Transcriptions', summary:'Aggregating Nate B Jones content across Substack and YouTube for digest.' },
+  { url:'https://claude.ai/chat/ai-agents-scaffolding', updated:'2026-05-11', title:'AI agents and scaffolding layers', folder:'Transcriptions', summary:'Transcript: prompts → skills → plugins → MCPs — agent design mental model.' },
+  { url:'https://claude.ai/chat/github-claude', updated:'2026-05-11', title:'GitHub access options for Claude', folder:'Openbrain', summary:'Options for Claude accessing GitHub repos — MCP, API token, Claude Code.' },
+  { url:'https://claude.ai/chat/322f3217-1e48-4f8f-8381-038994ca3237', updated:'2026-05-09', title:'Testing JGB Brain', folder:'', summary:'First live test of JGB Brain — fishing trip discovery, Gmail counts, Brain improvement analysis.' },
+  { url:'https://claude.ai/chat/unbundling-mgmt', updated:'2026-05-09', title:'Unbundling management in the age of AI', folder:'Transcriptions', summary:'Transcript: AI disaggregating traditional management functions — implications for operators.' },
+  { url:'https://claude.ai/chat/mozilla-security', updated:'2026-05-09', title:'Mozilla security and trusted code', folder:'Transcriptions', summary:'Transcript: Mozilla security principles and trusted code frameworks.' },
+  { url:'https://claude.ai/chat/dark-factory', updated:'2026-05-09', title:'The Dark Factory: AI software development levels', folder:'Transcriptions', summary:'Transcript: levels of AI automation in software development — lights-out factory analogy.' },
+  { url:'https://claude.ai/chat/ai-systems-2026', updated:'2026-05-09', title:'AI systems build principles for 2026', folder:'Transcriptions', summary:'Transcript: principles for building AI systems in 2026 — architecture, governance, tooling.' },
+  { url:'https://claude.ai/chat/second-brain-review', updated:'2026-05-09', title:'Second brain architecture review', folder:'Transcriptions', summary:'Review of second brain architecture — PKM, automation, Jones reference framework.' },
+
+  // ── 2 WEEKS AGO (May 4–8) ──
+  { url:'https://claude.ai/chat/jones-ai-job', updated:'2026-05-07', title:'Jones AI Job Market', folder:'Transcriptions', summary:'Transcript: AI impact on job market — Jones framework, displacement vs augmentation.' },
+  { url:'https://claude.ai/chat/thin-ice', updated:'2026-05-07', title:'Thin ice opportunity', folder:'Transcriptions', summary:'AI Thin Ice — job audit for TCLD. Protect D work: ambiguous briefs, strategy judgment.' },
+  { url:'https://claude.ai/chat/sum-calc', updated:'2026-05-07', title:'Sum calculation', folder:'Transcriptions', summary:'One-shot calculation task.' },
+  { url:'https://claude.ai/chat/summarize-youtube', updated:'2026-05-07', title:'Summarize YouTube', folder:'Summaries', summary:'YouTube video summarization task.' },
+  { url:'https://claude.ai/chat/clarifying-10xp', updated:'2026-05-07', title:'Clarifying 10xP', folder:'Transcriptions', summary:'Clarifying the 10xP concept — cognitive infrastructure, productivity multiplier framework.' },
+  { url:'https://claude.ai/chat/personal-ai-memory', updated:'2026-05-07', title:'Personal AI memory system with shared context', folder:'Transcriptions', summary:'Designing personal AI memory — shared context, cross-session continuity, Brain integration.' },
+  { url:'https://claude.ai/chat/jones-boring-systems', updated:'2026-05-07', title:'Jones Boring Systems', folder:'Transcriptions', summary:'Transcript: Jones on boring systems — reliability, simplicity, maintenance over novelty.' },
+  { url:'https://claude.ai/chat/attia-science', updated:'2026-05-07', title:'Attia Science', folder:'Transcriptions', summary:'Peter Attia science content — longevity, healthspan, evidence-based protocols.' },
+  { url:'https://claude.ai/chat/jung-aging', updated:'2026-05-07', title:'Jung\'s framework for aging well', folder:'Transcriptions', summary:'Jung on aging — individuation, meaning, second half of life framework.' },
+  { url:'https://claude.ai/chat/479e0c11-8be7-4fde-9d2b-c2863d77b2a6', updated:'2026-05-03', title:'Who is Nate B Jones', folder:'', summary:'Profile: ex-Amazon Prime Video Head of Product, AI strategist, 466K TikTok. Relevant to Commercial.' },
+  { url:'https://claude.ai/chat/ai-in-business', updated:'2026-05-03', title:'AI in Business', folder:'', summary:'General AI in business exploration — use cases, adoption patterns, operator implications.' },
+  { url:'https://claude.ai/chat/window-to-future', updated:'2026-05-03', title:'Window to the Future', folder:'', summary:'Forward-looking AI exploration session.' },
+  { url:'https://claude.ai/chat/llm-under-hood', updated:'2026-05-03', title:'LLM under the hood. Summarize', folder:'Summaries', summary:'Technical summary of LLM internals — attention, embeddings, inference.' },
+  { url:'https://claude.ai/chat/update-skillsets', updated:'2026-05-03', title:'Update my skill sets based on…', folder:'Learning Claude', summary:'Updating skill set definitions based on new workflow patterns.' },
+  { url:'https://claude.ai/chat/clarify-mythos', updated:'2026-05-03', title:'Clarifying the meaning of Mythos', folder:'Summaries', summary:'One-shot definition: Mythos vs Logos — Campbell/Armstrong framework.' },
+  { url:'https://claude.ai/chat/ai-beyond-llm', updated:'2026-05-03', title:'AI Beyond LLM', folder:'Window to the Future', summary:'Exploration of AI beyond language models — robotics, multimodal, agents.' },
+  { url:'https://claude.ai/chat/news-briefs', updated:'2026-05-03', title:'News briefs', folder:'Morning brief', summary:'Morning news brief session — AI, business, world news digest.' },
+  { url:'https://claude.ai/chat/ai-winners-brief', updated:'2026-05-03', title:'AI Winners Brief', folder:'Window to the Future', summary:'Brief on AI winners — companies, models, frameworks winning the current cycle.' },
+  { url:'https://claude.ai/chat/c941b4f0-8f67-4c35-af36-4a5e57d733c4', updated:'2026-05-01', title:'Message in a Bottle sales figures', folder:'', summary:'The Police — UK Platinum 1M+ units. One-shot lookup.' },
+  { url:'https://claude.ai/chat/yan-lecun', updated:'2026-05-01', title:'Tell me about Yan LeCun\'s work', folder:'Summaries', summary:'Overview of Yann LeCun — FAIR, energy-based models, critique of LLM scaling.' },
+
+  // ── 3 WEEKS AGO (Apr 27–May 1) ──
+  { url:'https://claude.ai/chat/maddie-course', updated:'2026-04-29', title:'Maddie Course', folder:'How to use Claude to design/ build', summary:'FAB aesthetic clinic course for Maddie — curriculum, launch strategy, Kajabi setup.' },
+  { url:'https://claude.ai/chat/ai-builders-guide', updated:'2026-04-29', title:'AI Builders Field Guide', folder:'Summaries', summary:'AI builders field guide — frameworks, tools, principles for AI product development.' },
+  { url:'https://claude.ai/chat/managing-ai-projects', updated:'2026-04-29', title:'Managing multiple AI projects across platforms', folder:'Summaries', summary:'Strategies for managing AI work across Claude, Notion, Drive, Brain — context switching.' },
+  { url:'https://claude.ai/chat/nascent-fast-changing', updated:'2026-04-29', title:'Given the nascent and fast changing…', folder:'Summaries', summary:'Strategy for operating in fast-moving AI landscape — what to watch, what to ignore.' },
+  { url:'https://claude.ai/chat/lost-field-guide', updated:'2026-04-29', title:'Finding a lost field guide chat', folder:'Claude tips', summary:'Searching past chats for a specific field guide conversation.' },
+  { url:'https://claude.ai/chat/template-prompting', updated:'2026-04-29', title:'Template application to Claude prompting guide', folder:'How to use Claude', summary:'Applying templates to Claude prompting — structured prompts, #tpl shortcut.' },
+  { url:'https://claude.ai/chat/cold-email-finance', updated:'2026-04-29', title:'Cold email for finance VPs with cost reduction angle', folder:'How to use Claude', summary:'Drafting cold outreach to finance VPs — cost reduction framing, personalization.' },
+  { url:'https://claude.ai/chat/claude-code-principles', updated:'2026-04-29', title:'Claude code system principles', folder:'How to use Claude Code', summary:'System principles for Claude Code — context management, skill files, git workflow.' },
+  { url:'https://claude.ai/chat/prompting-techniques', updated:'2026-04-29', title:'Prompting techniques and best practices', folder:'Summaries', summary:'Prompting best practices — XML tags, examples, chain of thought, #tpl format.' },
+  { url:'https://claude.ai/chat/ai-challenges', updated:'2026-04-29', title:'AI Challenges', folder:'Summaries', summary:'Current AI challenges — reliability, context, hallucination, adoption barriers.' },
+  { url:'https://claude.ai/chat/basb-openclaw', updated:'2026-04-29', title:'BASB, Openclaw', folder:'Summaries', summary:'Building a Second Brain + Openclaw — PKM frameworks, AI integration.' },
+  { url:'https://claude.ai/chat/ai-hardware', updated:'2026-04-29', title:'AI hardware landscape and builder implications', folder:'Summaries', summary:'AI hardware — GPUs, TPUs, inference chips, implications for builders and cost.' },
+  { url:'https://claude.ai/chat/fy27-payroll', updated:'2026-04-29', title:'FY27 payroll alignment update', folder:'primeFusion', summary:'FY27 payroll alignment — staffing model, budget, resource planning for primeFusion.' },
+
+  // ── 4 WEEKS AGO (Apr 20–26) ──
+  { url:'https://claude.ai/chat/three-yr-forecast', updated:'2026-04-22', title:'Three-year quarterly income forecast', folder:'primeFusion', summary:'3-year quarterly income forecast model for PrimeFusion — revenue, costs, milestones.' },
+  { url:'https://claude.ai/chat/council-proposal', updated:'2026-04-22', title:'Council proposal presentation deck', folder:'Marsh Street', summary:'Marsh Street CC council proposal deck — deferred revenue, capital assets, grant narrative.' },
+  { url:'https://claude.ai/chat/30d0b097-8c51-48e7-944e-5ee29873c9bb', updated:'2026-04-21', title:'Changing Claude app background', folder:'', summary:'Settings → Appearance for light/dark/system. Chrome extensions for more colour options.' },
+  { url:'https://claude.ai/chat/daily-news-brief', updated:'2026-04-21', title:'Daily news brief from major publications', folder:'Morning brief', summary:'Daily news brief setup — NYT, FT, WSJ, Economist digest workflow.' },
+  { url:'https://claude.ai/chat/what-is-your-understanding', updated:'2026-04-21', title:'What is your understanding of…', folder:'primeFusion', summary:'PrimeFusion context-setting — understanding company position, valuation parameters.' },
+
+  // ── LAST MONTH (Apr 10–18) ──
+  { url:'https://claude.ai/chat/ai-regulation', updated:'2026-04-18', title:'AI regulation and Washington\'s changing stance', folder:'Morning brief', summary:'Morning brief: AI regulation — Washington policy shifts, executive orders, EU AI Act.' },
+  { url:'https://claude.ai/chat/ai-adoption-gap', updated:'2026-04-18', title:'AI adoption gap widening', folder:'Morning brief', summary:'Morning brief: widening gap between AI-adopters and laggards — competitive implications.' },
+  { url:'https://claude.ai/chat/60f870ba-09f1-4523-852c-59a0487572d0', updated:'2026-04-18', title:'Summarizing paywalled articles with Claude', folder:'', summary:'Four-option morning brief workflow. Decision left open — no follow-up taken.' },
+  { url:'https://claude.ai/chat/daily-intelligence-brief', updated:'2026-04-17', title:'Building a daily intelligence brief in Claude Cowork', folder:'How to use Cowork', summary:'Setting up automated daily intelligence brief via Cowork — sources, scheduling, format.' },
+  { url:'https://claude.ai/chat/f0c88a68-1318-414a-ba66-a5689afb3c39', updated:'2026-04-13', title:'Cowork availability on iPad', folder:'', summary:'Cowork is Mac/Windows only. Dispatch (Max only) allows iPad → Mac via QR pair.' },
+  { url:'https://claude.ai/chat/post-video-setup', updated:'2026-04-13', title:'Post-video setup steps summary', folder:'Claude tips', summary:'Setup checklist after watching Claude intro video — connectors, projects, shortcuts.' },
+  { url:'https://claude.ai/chat/e2886e39-6924-4c58-b8d9-477a0c0a7ffb', updated:'2026-04-13', title:'Finding the Dispatch feature', folder:'', summary:'Dispatch is inside Cowork on Mac, not iOS. QR pair required. Max subscribers only.' },
+  { url:'https://claude.ai/chat/providing-context', updated:'2026-04-12', title:'Providing context to Claude', folder:'Learning Claude', summary:'Best practices for providing context — system prompts, Projects, persistent instructions.' },
+  { url:'https://claude.ai/chat/data-privacy', updated:'2026-04-12', title:'Claude\'s data privacy and training opt-out options', folder:'Learning Claude', summary:'Claude data handling — training opt-out, conversation privacy, enterprise controls.' },
+  { url:'https://claude.ai/chat/optimizing-workflow', updated:'2026-04-12', title:'Optimizing workflow', folder:'Learning Claude', summary:'Workflow optimization with Claude — context reuse, shortcuts, delegation patterns.' },
+  { url:'https://claude.ai/chat/capabilities-upgrade', updated:'2026-04-12', title:'Claude capabilities and upgrade options', folder:'Learning Claude', summary:'Claude Pro vs Max vs API — capability comparison, use case fit, upgrade decision.' },
+  { url:'https://claude.ai/chat/building-web-apps', updated:'2026-04-11', title:'Building web apps with Claude API', folder:'Learning Claude', summary:'Claude API for web apps — fetch, artifacts, MCP integration, deployment options.' },
+  { url:'https://claude.ai/chat/simple-deploy', updated:'2026-04-10', title:'Simple Claude app deployment setup', folder:'Dev and pipeline', summary:'Simple deployment setup for Claude-powered apps — hosting, environment, secrets.' },
+  { url:'https://claude.ai/chat/simplest-deploy', updated:'2026-04-10', title:'Simplest Claude app deployment setup', folder:'Dev and pipeline', summary:'Minimal deployment path for Claude apps — GitHub Pages, static hosting, no backend.' },
+];
+
+// EPIC color map
+const EPIC_COLORS = {
+  1: { bg:'rgba(124,92,252,.12)', border:'rgba(124,92,252,.3)', text:'#6344e0', label:'EPIC 1 — Sprint 4' },
+  2: { bg:'rgba(255,107,157,.1)',  border:'rgba(255,107,157,.3)', text:'#cc4488', label:'EPIC 2 — FAB' },
+  3: { bg:'rgba(0,160,138,.1)',    border:'rgba(0,160,138,.3)',  text:'#00a08a', label:'EPIC 3 — Commercial' },
+  4: { bg:'rgba(212,136,10,.1)',   border:'rgba(212,136,10,.3)', text:'#d4880a', label:'EPIC 4 — Cowork' },
+  5: { bg:'rgba(0,212,255,.1)',    border:'rgba(0,212,255,.3)',  text:'#0099bb', label:'EPIC 5 — JANA' },
+  6: { bg:'rgba(152,251,152,.15)', border:'rgba(100,200,100,.3)',text:'#3a9a3a', label:'EPIC 6 — Attia' },
+};
+
+// Persisted EPIC assignments (chatUrl -> epicId)
+let rcEpicMap = {
+  // EPIC 1 — Cognitive Infra / Sprint 4
+  'https://claude.ai/chat/current': 1,
+  'https://claude.ai/chat/current2': 1,
+  'https://claude.ai/chat/322f3217-1e48-4f8f-8381-038994ca3237': 1,
+  'https://claude.ai/chat/refine-brain-arch': 1,
+  'https://claude.ai/chat/second-brain-review': 1,
+  'https://claude.ai/chat/personal-ai-memory': 1,
+  'https://claude.ai/chat/basb-openclaw': 1,
+  'https://claude.ai/chat/token-efficiency': 1,
+  'https://claude.ai/chat/github-claude': 1,
+  // EPIC 2 — FAB
+  'https://claude.ai/chat/fba-landing': 2,
+  'https://claude.ai/chat/maddie-course': 2,
+  // EPIC 3 — Commercial
+  'https://claude.ai/chat/commercial-insights': 3,
+  'https://claude.ai/chat/jgb-core-values': 3,
+  'https://claude.ai/chat/479e0c11-8be7-4fde-9d2b-c2863d77b2a6': 3,
+  'https://claude.ai/chat/thin-ice': 3,
+  'https://claude.ai/chat/ai-in-business': 3,
+  'https://claude.ai/chat/clarifying-10xp': 3,
+  'https://claude.ai/chat/cold-email-finance': 3,
+  'https://claude.ai/chat/what-is-your-understanding': 3,
+  'https://claude.ai/chat/three-yr-forecast': 3,
+  'https://claude.ai/chat/fy27-payroll': 3,
+  // EPIC 4 — Cowork / Ops
+  'https://claude.ai/chat/cowork-email-sched': 4,
+  'https://claude.ai/chat/60f870ba-09f1-4523-852c-59a0487572d0': 4,
+  'https://claude.ai/chat/daily-intelligence-brief': 4,
+  'https://claude.ai/chat/wix-connector': 4,
+  'https://claude.ai/chat/optimizing-workflow': 4,
+  // EPIC 5 — JANA AI Acceleration
+  'https://claude.ai/chat/ai-accel': 5,
+  'https://claude.ai/chat/ai-code-maint': 5,
+  'https://claude.ai/chat/ai-challenges': 5,
+  'https://claude.ai/chat/ai-beyond-llm': 5,
+  'https://claude.ai/chat/dark-factory': 5,
+  'https://claude.ai/chat/ai-systems-2026': 5,
+  'https://claude.ai/chat/ai-hardware': 5,
+  // EPIC 6 — Attia / Brain enrichment
+  'https://claude.ai/chat/jgb-setup': 6,
+  'https://claude.ai/chat/jgb-setup-pt2': 6,
+  'https://claude.ai/chat/jgb-setup-1d': 6,
+  'https://claude.ai/chat/jgb-enrichment-overview': 6,
+  'https://claude.ai/chat/openbrain-qa': 6,
+  'https://claude.ai/chat/gmail-openbrain': 6,
+  'https://claude.ai/chat/attia-science': 6,
+  'https://claude.ai/chat/personal-obs-openbrain': 6,
+};
+
+// ONE-SHOT titles — flagged complete regardless of age
+const RC_ONESHOT = new Set([
+  'https://claude.ai/chat/c941b4f0-8f67-4c35-af36-4a5e57d733c4',
+  'https://claude.ai/chat/30d0b097-8c51-48e7-944e-5ee29873c9bb',
+  'https://claude.ai/chat/f0c88a68-1318-414a-ba66-a5689afb3c39',
+  'https://claude.ai/chat/e2886e39-6924-4c58-b8d9-477a0c0a7ffb',
+  'https://claude.ai/chat/8f01a8fd-9768-4e98-9ec2-ea944cdd734a',
+  'https://claude.ai/chat/sum-calc',
+  'https://claude.ai/chat/clarify-mythos',
+  'https://claude.ai/chat/yan-lecun',
+  'https://claude.ai/chat/data-privacy',
+  'https://claude.ai/chat/capabilities-upgrade',
+  'https://claude.ai/chat/c941b4f0-8f67-4c35-af36-4a5e57d733c4',
+  'https://claude.ai/chat/ai-regulation',
+  'https://claude.ai/chat/ai-adoption-gap',
+  'https://claude.ai/chat/news-briefs',
+  'https://claude.ai/chat/ai-winners-brief',
+  'https://claude.ai/chat/daily-news-brief',
+  'https://claude.ai/chat/jung-aging',
+  'https://claude.ai/chat/mozilla-security',
+  'https://claude.ai/chat/council-proposal',
+]);
+
+const TODAY = new Date('2026-05-18');
+
+function rcDaysAgo(dateStr){
+  return Math.floor((TODAY - new Date(dateStr)) / 86400000);
+}
+
+function rcStatus(chat){
+  if(RC_ONESHOT.has(chat.url)) return 'complete';
+  const days = rcDaysAgo(chat.updated);
+  if(days <= 7) return 'active';
+  if(days <= 14) return 'active'; // still warm
+  return 'stalled';
+}
+
+function rcStatusColor(s){ return s==='complete'?'#22a866':s==='active'?'#d4920a':'#d43a2a'; }
+function rcStatusLabel(s){ return s==='complete'?'Complete':s==='active'?'Active':'Stalled'; }
+function rcStalenessLabel(days){
+  if(days === 0) return 'Today';
+  if(days === 1) return 'Yesterday';
+  if(days < 7)  return `${days}d ago`;
+  if(days < 30) return `${Math.floor(days/7)}w ago`;
+  return `${Math.floor(days/30)}mo ago`;
+}
+
+let rcActiveFilter = 'all';
+let rcSearchQuery = '';
+let rcPickerOpen = null;
+
+function rcFilter(f){
+  rcActiveFilter = f;
+  document.querySelectorAll('.rc-filter').forEach(b=>b.classList.remove('on'));
+  const el = document.getElementById('rcf-'+f);
+  if(el) el.classList.add('on');
+  renderRecents();
+}
+
+function rcSearch(q){
+  rcSearchQuery = q.toLowerCase();
+  renderRecents();
+}
+
+function rcTogglePicker(url, e){
+  e.stopPropagation();
+  rcPickerOpen = rcPickerOpen === url ? null : url;
+  renderRecents();
+}
+
+function rcAssignEpic(url, epicId, e){
+  e.stopPropagation();
+  if(rcEpicMap[url] === epicId) delete rcEpicMap[url];
+  else rcEpicMap[url] = epicId;
+  rcPickerOpen = null;
+  renderRecents();
+}
+
+function renderRecents(){
+  const scroll = document.getElementById('rc-scroll');
+
+  let chats = RC_CHATS.map(c=>({
+    ...c,
+    days: rcDaysAgo(c.updated),
+    status: rcStatus(c),
+    epicId: rcEpicMap[c.url] || null,
+  }));
+
+  // Filter
+  if(rcActiveFilter === 'stalled')  chats = chats.filter(c=>c.status==='stalled');
+  if(rcActiveFilter === 'active')   chats = chats.filter(c=>c.status==='active');
+  if(rcActiveFilter === 'complete') chats = chats.filter(c=>c.status==='complete');
+  if(rcActiveFilter === 'untagged') chats = chats.filter(c=>!c.epicId);
+  if(rcSearchQuery) chats = chats.filter(c=>c.title.toLowerCase().includes(rcSearchQuery)||c.summary.toLowerCase().includes(rcSearchQuery));
+
+  // Sort: stalled first, then active, then complete; within each by recency
+  const order = {stalled:0,active:1,complete:2};
+  chats.sort((a,b)=> order[a.status]-order[b.status] || a.days-b.days);
+
+  // Group by EPIC (or Unassigned)
+  const byEpic = {};
+  chats.forEach(c=>{
+    const key = c.epicId ? `epic-${c.epicId}` : 'unassigned';
+    if(!byEpic[key]) byEpic[key] = [];
+    byEpic[key].push(c);
+  });
+
+  // Order: assigned EPICs first (1-6), then unassigned
+  const epicKeys = Object.keys(byEpic).filter(k=>k!=='unassigned').sort();
+  if(byEpic['unassigned']) epicKeys.push('unassigned');
+
+  let html = '';
+  epicKeys.forEach(key=>{
+    const group = byEpic[key];
+    const isEpic = key !== 'unassigned';
+    const epicId = isEpic ? parseInt(key.split('-')[1]) : null;
+    const ec = epicId ? EPIC_COLORS[epicId] : null;
+    const groupLabel = isEpic ? (ec?.label || `EPIC ${epicId}`) : 'Unassigned';
+    const stalled = group.filter(c=>c.status==='stalled').length;
+
+    html += `<div class="rc-group-hd">
+      <span>${groupLabel}</span>
+      <span class="rc-group-badge">${group.length}</span>
+      ${stalled ? `<span style="color:#d43a2a;font-size:8px">⚠ ${stalled} stalled</span>` : ''}
+    </div>`;
+
+    group.forEach(c=>{
+      const sc = rcStatusColor(c.status);
+      const epic = c.epicId ? EPIC_COLORS[c.epicId] : null;
+      const pickerOpen = rcPickerOpen === c.url;
+
+      const epicTagHtml = c.epicId && epic
+        ? `<span class="rc-epic-tag" style="background:${epic.bg};border-color:${epic.border};color:${epic.text}" onclick="rcTogglePicker('${c.url}',event)">${epic.label} ✕</span>`
+        : `<span class="rc-epic-tag" style="background:var(--border);border-color:var(--border2);color:var(--dim)" onclick="rcTogglePicker('${c.url}',event)">+ Tag EPIC</span>`;
+
+      const pickerHtml = `<div class="rc-epic-picker ${pickerOpen?'open':''}" id="picker-${c.url.slice(-8)}">
+        ${Object.entries(EPIC_COLORS).map(([id,ec])=>`
+          <span class="rc-epic-opt" style="${c.epicId==id?`background:${ec.bg};color:${ec.text};border-color:${ec.border}`:''}" onclick="rcAssignEpic('${c.url}',${id},event)">${ec.label}</span>
+        `).join('')}
+        ${c.epicId?`<span class="rc-epic-opt" style="color:#d43a2a" onclick="rcAssignEpic('${c.url}',null,event)">✕ Remove</span>`:''}
+      </div>`;
+
+      html += `<div class="rc-row" onclick="window.open('${c.url}','_blank')">
+        <div class="rc-status" style="background:${sc}"></div>
+        <div class="rc-main">
+          <div class="rc-title">${c.title}</div>
+          <div class="rc-summary">${c.summary}</div>
+          <div class="rc-meta">
+            <span class="rc-date">${rcStalenessLabel(c.days)}</span>
+            <span class="rc-staleness" style="color:${sc}">${rcStatusLabel(c.status)}</span>
+            ${c.folder ? `<span style="font-size:8px;color:var(--dim);padding:1px 5px;background:var(--border);border-radius:3px">${c.folder}</span>` : ''}
+            ${epicTagHtml}
+          </div>
+          ${pickerHtml}
+        </div>
+        <a class="rc-open" href="${c.url}" target="_blank" onclick="event.stopPropagation()">Open ↗</a>
+      </div>`;
+    });
+  });
+
+  scroll.innerHTML = html || `<div style="padding:24px;color:var(--dim);font-size:11px">No chats match this filter.</div>`;
+  setStatus(`Recents — ${chats.length} of ${RC_CHATS.length} chats · 🔴 stalled = 14+ days · click folder tag to filter · Open ↗ to resume`);
+}
+</script>
+
+
+<script>
+// ════════════════════════════════════════════════════════════
+// TAB SWITCHER
+// ════════════════════════════════════════════════════════════
+
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('v-'+id).classList.add('active');
+  activeTab = id;
+  requestAnimationFrame(()=>{
+    if(id==='tree')      { initVSplit('tree');    renderTree(); }
+    if(id==='cluster')   { initVSplit('cluster'); renderCluster(); }
+    if(id==='timeline')  { renderTimeline(); }
+    if(id==='graph')     {
+      initVSplit('graph');
+      if(!gGraphBuilt){ gBuild(); gRender(); }
+      else gResize();
+      setStatus('Knowledge Graph — '+gNodes.length+' nodes · Drag bar to resize · Shift+click to pin');
+    }
+    if(id==='dashboard') { renderDashboard(); }
+    if(id==='recents')   { renderRecents(); }
+  });
+}
+
+window.addEventListener('resize',()=>{
+  requestAnimationFrame(()=>{
+    if(activeTab==='tree')    renderTree();
+    if(activeTab==='cluster') renderCluster();
+    if(activeTab==='graph' && gGraphBuilt) gResize();
+  });
+});
+
+window.addEventListener('load',()=>{
+  requestAnimationFrame(()=>{
+    initVSplit('tree');
+    renderTree();
+  });
+});
+</script>
+</body>
+</html>
